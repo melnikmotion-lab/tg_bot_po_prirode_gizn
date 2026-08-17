@@ -1,7 +1,8 @@
 import asyncio
 import os
 import threading
-from flask import FlaskAPPLY_DELAY_SECONDS = 1 * 60
+from flask import Flask
+APPLY_DELAY_SECONDS = 1 * 60
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton,
