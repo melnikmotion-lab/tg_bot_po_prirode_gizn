@@ -2,7 +2,6 @@ import asyncio
 import os
 import threading
 from flask import Flask
-APPLY_DELAY_SECONDS = 1 * 60
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton,
@@ -141,6 +140,7 @@ def ensure_user(user_id: int):
             "subscribed": False,
             "has_applied": False,
             "apply_prompt_scheduled": False,
+            "apply_task": None,
         }
     return user_data[user_id]
 
@@ -234,6 +234,14 @@ async def _do_start_test(message: Message, user_id: int):
 
     data["current_question"] = 0
     data["score"] = 0
+
+    existing_task = data.get("apply_task")
+    if existing_task and not existing_task.done():
+        existing_task.cancel()
+    data["apply_task"] = None
+    data["apply_prompt_scheduled"] = False
+    data["has_applied"] = False
+
     await send_question(message, 0)
 
 @dp.callback_query(F.data == "start_test")
@@ -300,7 +308,7 @@ async def schedule_apply_prompt(user_id: int, chat_id: int):
     if data.get("apply_prompt_scheduled"):
         return
     data["apply_prompt_scheduled"] = True
-    asyncio.create_task(_send_delayed_apply_prompt(user_id, chat_id))
+    data["apply_task"] = asyncio.create_task(_send_delayed_apply_prompt(user_id, chat_id))
 
 async def _send_delayed_apply_prompt(user_id: int, chat_id: int):
     await asyncio.sleep(APPLY_DELAY_SECONDS)
