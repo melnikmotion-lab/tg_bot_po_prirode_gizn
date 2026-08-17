@@ -1,7 +1,6 @@
 import asyncio
 import os
 import threading
-from urllib.parse import quote
 from flask import Flask
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
@@ -33,8 +32,7 @@ WELCOME_PHOTO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "w
 VIDEO_URL = "https://youtu.be/4vB23x-aU0Q"
 CHANNEL_USERNAME = "@Prirodo_ved"
 
-_write_msg = quote("Привет! Прошёл тест, хочу узнать подробнее о консультации")
-WRITE_DIRECTLY_URL = f"https://t.me/Alexey_melnik?text={_write_msg}"
+WRITE_DIRECTLY_URL = "https://t.me/Prirodo_ved?direct"
 
 # === КЛАВИАТУРЫ ===
 
@@ -46,8 +44,8 @@ subscribe_kb = InlineKeyboardMarkup(
     inline_keyboard=[[InlineKeyboardButton(text="✅ Подписка есть", callback_data="check_subscription")]]
 )
 
-video_watch_kb = InlineKeyboardMarkup(
-    inline_keyboard=[[InlineKeyboardButton(text="🎬 Смотреть видео", callback_data="watch_video")]]
+video_kb = InlineKeyboardMarkup(
+    inline_keyboard=[[InlineKeyboardButton(text="🎬 Смотреть видео", url=VIDEO_URL)]]
 )
 
 apply_kb = InlineKeyboardMarkup(
@@ -130,20 +128,6 @@ def result_text(score: int) -> str:
             "Хорошего просмотра!"
         )
 
-# === ТЕКСТЫ ПОД ВИДЕО (эскалация по числу показов) ===
-
-VIDEO_INTROS = [
-    "Оставить заявку на личную работу можешь по кнопке ниже",
-    "О, ты вернулся. Мне это нравится.",
-    "Третий раз смотришь. Мне кажется это уже судьба.",
-    "Видео то бесплатное, но наглеть тоже не надо) Может уже поговорим?",
-    "Ну ничего там уже нового не появится. Давай познакомимся.",
-]
-
-def video_intro_text(views: int) -> str:
-    idx = min(views, len(VIDEO_INTROS)) - 1
-    return VIDEO_INTROS[idx]
-
 # === СОСТОЯНИЕ ПОЛЬЗОВАТЕЛЯ ===
 
 user_data = {}
@@ -154,8 +138,8 @@ def ensure_user(user_id: int):
             "current_question": 0,
             "score": 0,
             "subscribed": False,
-            "video_views": 0,
             "has_applied": False,
+            "apply_prompt_scheduled": False,
         }
     return user_data[user_id]
 
@@ -296,23 +280,41 @@ async def show_result(message: Message, user_id: int, user):
     )
 
     await send_video_block(message, user_id)
+    await schedule_apply_prompt(user_id, message.chat.id)
 
-# === ШАГ 5: Видео (просто ссылка + кнопка) ===
+# === ШАГ 5: Видео (ссылка + кнопка, одним сообщением) ===
 
 async def send_video_block(message: Message, user_id: int):
-    await message.answer(VIDEO_URL, reply_markup=video_watch_kb, link_preview=LinkPreviewOptions(url=VIDEO_URL))
+    await message.answer(
+        "Вот видео, где я подробно всё разбираю 👇",
+        reply_markup=video_kb,
+        link_preview=LinkPreviewOptions(url=VIDEO_URL)
+    )
 
-# === Кнопка "Смотреть видео" (эскалация текста + заявка при каждом нажатии) ===
+# === ШАГ 6: Заявка приходит отдельным сообщением через 10 минут ===
 
-@dp.callback_query(F.data == "watch_video")
-async def watch_video_callback(callback: CallbackQuery):
-    await callback.answer()
-    user_id = callback.from_user.id
+APPLY_DELAY_SECONDS = 10 * 60  # 10 минут
+
+async def schedule_apply_prompt(user_id: int, chat_id: int):
     data = ensure_user(user_id)
-    data["video_views"] += 1
-    intro = video_intro_text(data["video_views"])
+    if data.get("apply_prompt_scheduled"):
+        return
+    data["apply_prompt_scheduled"] = True
+    asyncio.create_task(_send_delayed_apply_prompt(user_id, chat_id))
 
-    await callback.message.answer(intro, reply_markup=apply_kb)
+async def _send_delayed_apply_prompt(user_id: int, chat_id: int):
+    await asyncio.sleep(APPLY_DELAY_SECONDS)
+    data = user_data.get(user_id)
+    if data and data.get("has_applied"):
+        return
+    try:
+        await bot.send_message(
+            chat_id,
+            "Оставить заявку на личную работу можешь по кнопке ниже",
+            reply_markup=apply_kb
+        )
+    except Exception as e:
+        print(f"[delayed apply prompt] failed to send: {e}")
 
 # === Кнопка "Оставить заявку" ===
 
@@ -333,8 +335,8 @@ async def apply_callback(callback: CallbackQuery):
             f"Балл: {data.get('score', '—')} из 80"
         )
         await callback.message.answer(
-            "Принял! Скоро сам тебе напишу 🙂\n\n"
-            "Если хочешь — можешь и сам начать разговор:",
+            "Принял! Скоро я тебе напишу 🙂\n\n"
+            "Если не хочешь ждать, то напиши мне первым!",
             reply_markup=write_directly_kb
         )
     else:
