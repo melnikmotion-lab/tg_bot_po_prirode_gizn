@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton, LinkPreviewOptions,
-    BotCommand, MenuButtonCommands, CallbackQuery
+    BotCommand, MenuButtonCommands, CallbackQuery, FSInputFile
 )
 from aiogram.filters import Command
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
@@ -29,7 +29,7 @@ async def notify_admin(text):
 
 # === КАРТИНКИ / ССЫЛКИ ===
 
-WELCOME_PHOTO = "AgACAgIAAxkBAAPnac0TZfCGiMWP1rxAB5KfIAcxLUsAAm8YaxsXzGhKc7biXPOKOEQBAAMCAAN5AAM6BA"
+WELCOME_PHOTO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "welcome.png")
 VIDEO_URL = "https://youtu.be/4vB23x-aU0Q"
 CHANNEL_USERNAME = "@Prirodo_ved"
 
@@ -46,11 +46,13 @@ subscribe_kb = InlineKeyboardMarkup(
     inline_keyboard=[[InlineKeyboardButton(text="✅ Подписка есть", callback_data="check_subscription")]]
 )
 
-def video_kb():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎬 Смотреть видео", url=VIDEO_URL)],
-        [InlineKeyboardButton(text="📩 Оставить заявку", callback_data="apply")],
-    ])
+video_watch_kb = InlineKeyboardMarkup(
+    inline_keyboard=[[InlineKeyboardButton(text="🎬 Смотреть видео", callback_data="watch_video")]]
+)
+
+apply_kb = InlineKeyboardMarkup(
+    inline_keyboard=[[InlineKeyboardButton(text="📩 Оставить заявку", callback_data="apply")]]
+)
 
 write_directly_kb = InlineKeyboardMarkup(
     inline_keyboard=[[InlineKeyboardButton(text="✍️ Написать мне самому", url=WRITE_DIRECTLY_URL)]]
@@ -113,19 +115,19 @@ def result_text(score: int) -> str:
             "Судя по ответам, я вижу, что ты уже сделал много усилий, чтобы понять себя и свою природу, "
             "но где-то ещё чувствуешь потерянность или неуверенность.\n\n"
             "Специально для этого я создал видео, где рассказываю, как понять себя и чем заниматься "
-            "в этой жизни. Там — про основную и дополнительную природу, и почему это влияет на "
-            "удовлетворённость и устойчивость в своей деятельности.\n\n"
-            "В конце — бонус: две практики, которые помогут увидеть, к какой природе у тебя есть склонности.\n\n"
-            "Хорошего просмотра."
+            "в этой жизни. Там я рассказываю про основную и дополнительную природу, и почему это влияет "
+            "на удовлетворённость и устойчивость в своей деятельности.\n\n"
+            "В конце бонус: две практики, которые помогут увидеть, к какой природе у тебя есть склонности.\n\n"
+            "Хорошего просмотра!"
         )
     else:
         return (
             "Судя по твоему ответу, я вижу запутанность и растерянность в вопросах своей природы и деятельности.\n\n"
-            "Именно для этого я создал видео, где рассказываю, как понять себя и чем заниматься в этой жизни. "
-            "Там — про основную и дополнительную природу, чем чревато её непонимание, и какие подарки "
+            "Специально для этого я создал видео, где рассказываю, как понять себя и чем заниматься в этой жизни. "
+            "Там я рассказываю про основную и дополнительную природу, чем чревато её непонимание, и какие подарки "
             "приходят, когда начинаешь ей следовать.\n\n"
             "В конце — бонус: две практики, которые помогут увидеть, к какой природе у тебя есть склонности.\n\n"
-            "Хорошего просмотра."
+            "Хорошего просмотра!"
         )
 
 # === ТЕКСТЫ ПОД ВИДЕО (эскалация по числу показов) ===
@@ -169,12 +171,14 @@ async def start(message: Message):
 
     welcome_text = (
         "👋 Привет, я очень рад встрече с тобой!\n\n"
-        "Сейчас тебя ждёт тест — он покажет, насколько ты сейчас живёшь в согласии со своей природой.\n"
-        "Отвечай честно — так результат будет точнее."
+        "Сейчас тебя ждёт тест. Он покажет, насколько ты сейчас живёшь в согласии со своей природой.\n"
+        "Отвечай честно, так результат будет точнее."
     )
     try:
-        await message.answer_photo(photo=WELCOME_PHOTO, caption=welcome_text)
-    except Exception:
+        photo = FSInputFile(WELCOME_PHOTO_PATH)
+        await message.answer_photo(photo=photo, caption=welcome_text)
+    except Exception as e:
+        print(f"[welcome photo] failed to send: {e}")
         await message.answer(welcome_text)
 
     await message.answer(
@@ -293,14 +297,22 @@ async def show_result(message: Message, user_id: int, user):
 
     await send_video_block(message, user_id)
 
-# === ШАГ 5: Видео + кнопки (эскалация текста при повторных показах) ===
+# === ШАГ 5: Видео (просто ссылка + кнопка) ===
 
 async def send_video_block(message: Message, user_id: int):
+    await message.answer(VIDEO_URL, reply_markup=video_watch_kb, link_preview=LinkPreviewOptions(url=VIDEO_URL))
+
+# === Кнопка "Смотреть видео" (эскалация текста + заявка при каждом нажатии) ===
+
+@dp.callback_query(F.data == "watch_video")
+async def watch_video_callback(callback: CallbackQuery):
+    await callback.answer()
+    user_id = callback.from_user.id
     data = ensure_user(user_id)
     data["video_views"] += 1
     intro = video_intro_text(data["video_views"])
 
-    await message.answer(intro, reply_markup=video_kb())
+    await callback.message.answer(intro, reply_markup=apply_kb)
 
 # === Кнопка "Оставить заявку" ===
 
