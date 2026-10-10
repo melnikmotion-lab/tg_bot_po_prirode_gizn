@@ -17,7 +17,17 @@ const GM_MODEL = env.GM_MODEL || 'claude-haiku-5-5';
 const TALK_MODEL = env.TALK_MODEL || 'claude-sonnet-5-5';
 const FREE_TURNS = +env.FREE_TURNS || 30;          // free AI turns a day for a Telegram player
 const FREE_TURNS_WEB = +env.FREE_TURNS_WEB || 10;  // free AI turns a day outside Telegram
-const MAX_CALLS_DAY = +env.MAX_CALLS_DAY || 5000;  // wallet guard: AI calls a day for everyone together
+// Wallet guards, in dollars of real Claude spend (computed from token usage of every call).
+const DAY_BUDGET = +env.DAY_BUDGET || 3;            // free play stops for everyone after this much spend in a day
+const HARD_DAY_BUDGET = +env.HARD_DAY_BUDGET || 10; // nothing runs after this, paid or not
+const FREE_USER_DAY = +env.FREE_USER_DAY || 0.10;   // one free player's spend a day
+const PASS_USER_DAY = +env.PASS_USER_DAY || 0.10;   // one unlimited-pass player's spend a day (the pass brings ~$0.11 a day)
+// $ per million tokens: input, output. Cache writes cost 1.25x input, cache reads 0.1x.
+const PRICES = { 'claude-haiku-5-5': [0.10, 0.50], 'claude-sonnet-5-5': [2, 10], 'claude-opus-5-5': [4, 20] };
+function costOf(model, us) {
+  const [i, o] = PRICES[model] || PRICES['claude-sonnet-5-5'];
+  return ((us.input_tokens || 0) * i + (us.cache_creation_input_tokens || 0) * i * 1.25 + (us.cache_read_input_tokens || 0) * i * 0.1 + (us.output_tokens || 0) * o) / 1e6;
+}
 const ADMIN_KEY = env.ADMIN_KEY || '';
 const SUPPORT = env.SUPPORT_CONTACT || '';
 const PRODUCTS = {
@@ -31,7 +41,7 @@ if (!anthropic) console.warn('ANTHROPIC_API_KEY is not set: the game runs in off
 /* ---------- storage: one JSON file on the volume ---------- */
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const DB_FILE = path.join(DATA_DIR, 'state.json'), LOG_FILE = path.join(DATA_DIR, 'log.jsonl');
-let db = { users: {}, ips: {}, payments: [], day: '', calls: 0 };
+let db = { users: {}, ips: {}, payments: [], day: '', calls: 0, spend: 0, spendTotal: 0 };
 try { db = { ...db, ...JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) }; } catch {}
 let saveTimer = null;
 function persist() {
@@ -48,12 +58,13 @@ function logLine(obj) {
 const today = () => new Date().toISOString().slice(0, 10);
 function rollDay() {
   const d = today();
-  if (db.day !== d) { db.day = d; db.calls = 0; db.ips = {}; }
+  if (db.day !== d) { db.day = d; db.calls = 0; db.spend = 0; db.ips = {}; }
 }
 function user(key) {
   rollDay();
-  const u = db.users[key] ||= { bonus: 0, passUntil: 0, day: '', used: 0, art: 0, turns: {} };
-  if (u.day !== db.day) { u.day = db.day; u.used = 0; u.art = 0; u.turns = {}; }
+  const u = db.users[key] ||= { bonus: 0, passUntil: 0, day: '', used: 0, art: 0, turns: {}, cost: 0, paidTurns: {} };
+  if (u.day !== db.day) { u.day = db.day; u.used = 0; u.art = 0; u.turns = {}; u.cost = 0; u.paidTurns = {}; }
+  u.paidTurns ||= {}; u.cost ||= 0;
   return u;
 }
 const quota = (u, tg) => ({ free: tg ? FREE_TURNS : FREE_TURNS_WEB, used: u.used, bonus: u.bonus, pass: u.passUntil > Date.now() ? u.passUntil : 0, telegram: tg });
@@ -97,12 +108,12 @@ function parseJson(text) {
   if (s < 0 || e <= s) return null;
   try { return JSON.parse(text.slice(s, e + 1)); } catch { return null; }
 }
-async function callClaude(prompt, kind) {
+async function callClaude(prompt, kind, paid) {
   const [fixed, rest] = split(prompt);
   const system = [{ type: 'text', text: SYSTEM }];
   if (fixed) system.push({ type: 'text', text: fixed, cache_control: { type: 'ephemeral' } });
   const msg = await anthropic.messages.create({
-    model: kind === 'talk' ? TALK_MODEL : GM_MODEL,
+    model: kind === 'talk' && paid ? TALK_MODEL : GM_MODEL,  // the smarter voice is for paying players
     max_tokens: 4000,
     system,
     messages: [{ role: 'user', content: rest }],
@@ -122,7 +133,9 @@ async function apiAi(req, body) {
   if (!kind || prompt.length > 60000) return [400, { error: 'invalid_request' }];
   if (!anthropic) return [503, { error: 'sampling_disabled' }];
   const u = user(me.key);
-  if (db.calls >= MAX_CALLS_DAY) return [429, { error: 'busy_today', quota: quota(u, me.tg) }];
+  const pass = u.passUntil > Date.now();
+  if (db.spend >= HARD_DAY_BUDGET) return [429, { error: 'busy_today', quota: quota(u, me.tg) }];
+  if (pass && u.cost >= PASS_USER_DAY) return [429, { error: 'fair_use', quota: quota(u, me.tg) }];
   if (!me.tg) {
     const n = db.ips[me.ip] = (db.ips[me.ip] || 0) + 1;
     if (n > FREE_TURNS_WEB * 6) return [429, { error: 'limit_reached', quota: quota(u, me.tg) }];
@@ -133,9 +146,11 @@ async function apiAi(req, body) {
   } else {
     const turn = String(req.headers['x-turn'] || '').slice(0, 24) || 'none';
     if (!u.turns[turn]) {
-      if (u.passUntil > Date.now()) {}
-      else if (u.used < (me.tg ? FREE_TURNS : FREE_TURNS_WEB)) u.used++;
-      else if (u.bonus > 0) u.bonus--;
+      const freeOk = u.used < (me.tg ? FREE_TURNS : FREE_TURNS_WEB) && u.cost < FREE_USER_DAY && db.spend < DAY_BUDGET;
+      if (pass) u.paidTurns[turn] = 1;
+      else if (freeOk) u.used++;
+      else if (u.bonus > 0) { u.bonus--; u.paidTurns[turn] = 1; }
+      else if (u.used < (me.tg ? FREE_TURNS : FREE_TURNS_WEB) && db.spend >= DAY_BUDGET) return [429, { error: 'busy_today', quota: quota(u, me.tg) }];
       else return [402, { error: 'limit_reached', quota: quota(u, me.tg) }];
       u.turns[turn] = 0;
     }
@@ -144,8 +159,11 @@ async function apiAi(req, body) {
   db.calls++; persist();
   try {
     const t0 = Date.now();
-    const r = await callClaude(prompt, kind);
-    logLine({ type: 'ai', user: me.key, kind, ms: Date.now() - t0, model: r.model, usage: r.usage });
+    const turn = String(req.headers['x-turn'] || '').slice(0, 24) || 'none';
+    const r = await callClaude(prompt, kind, pass || !!u.paidTurns[turn]);
+    const cost = costOf(r.model, r.usage || {});
+    u.cost += cost; db.spend += cost; db.spendTotal += cost; persist();
+    logLine({ type: 'ai', user: me.key, kind, ms: Date.now() - t0, model: r.model, usage: r.usage, cost: +cost.toFixed(5) });
     return [200, { data: r.data, quota: quota(u, me.tg) }];
   } catch (e) {
     const code = e && e.code ? e.code : e instanceof Anthropic.RateLimitError ? 'rate_limited' : 'upstream_error';
@@ -269,7 +287,7 @@ const server = http.createServer(async (req, res) => {
       if (!ADMIN_KEY || url.searchParams.get('key') !== ADMIN_KEY) return send(res, 403, { error: 'forbidden' });
       if (url.pathname === '/api/admin/stats') {
         const users = Object.entries(db.users);
-        return send(res, 200, { day: db.day, callsToday: db.calls, users: users.length, activeToday: users.filter(([, u]) => u.day === db.day && u.used).length, payments: db.payments.length, stars: db.payments.reduce((s, p) => s + (p.stars || 0), 0) });
+        return send(res, 200, { day: db.day, callsToday: db.calls, spendToday: +db.spend.toFixed(3), spendTotal: +db.spendTotal.toFixed(3), starsUsd: +(db.payments.reduce((s, p) => s + (p.stars || 0), 0) * 0.013).toFixed(2), users: users.length, activeToday: users.filter(([, u]) => u.day === db.day && u.used).length, payments: db.payments.length, stars: db.payments.reduce((s, p) => s + (p.stars || 0), 0) });
       }
       if (url.pathname === '/api/admin/log') {
         const n = Math.min(+url.searchParams.get('n') || 200, 5000);

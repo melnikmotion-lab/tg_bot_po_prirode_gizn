@@ -1537,7 +1537,7 @@ function renderJournal(){
 }
 function renderAll(){ renderHud(); renderJournal(); }
 
-const ERR = { not_granted:'Ты не разрешил странице обращаться к Claude, поэтому включён упрощённый режим.', sampling_disabled:'ИИ-мастер сейчас недоступен, поэтому включён упрощённый режим.', rate_limited:'Слишком много ходов подряд. Подожди немного и повтори.', session_expired:'Перезапусти игру.', refused:'Мастер отказался описывать это действие. Попробуй иначе.', invalid_json:'Мастер ответил неразборчиво. Повтори ход.', upstream_error:'Связь с мастером прервалась. Повтори ход.', limit_reached:'Бесплатные ходы мастера на сегодня кончились. Завтра будут новые, или можно докупить.', busy_today:'Мастер сегодня перегружен игроками. Загляни чуть позже.', invalid_request:'Мастер не понял запрос. Повтори ход.' };
+const ERR = { not_granted:'Ты не разрешил странице обращаться к Claude, поэтому включён упрощённый режим.', sampling_disabled:'ИИ-мастер сейчас недоступен, поэтому включён упрощённый режим.', rate_limited:'Слишком много ходов подряд. Подожди немного и повтори.', session_expired:'Перезапусти игру.', refused:'Мастер отказался описывать это действие. Попробуй иначе.', invalid_json:'Мастер ответил неразборчиво. Повтори ход.', upstream_error:'Связь с мастером прервалась. Повтори ход.', limit_reached:'Бесплатные ходы мастера на сегодня кончились. Завтра будут новые, или можно докупить.', busy_today:'Мастер сегодня перегружен игроками. Бесплатная игра продолжится завтра, а с покупкой можно играть уже сейчас.', fair_use:'На сегодня мастер выдохся: даже безлимит отдыхает до завтра. Возвращайся завтра!', invalid_request:'Мастер не понял запрос. Повтори ход.' };
 async function act(text){
   text = cleanStr(text, 240); if (!text || busy) return;
 
@@ -1582,7 +1582,7 @@ async function act(text){
     const code = e && e.code;
     if (['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(code)){ sample = null; setMode(); }
     S.journal.pop(); S.journal.push({ who: 'sys', text: ERR[code] || 'Что-то пошло не так. Повтори ход.' });
-    if (code === 'limit_reached' && window.Platform) window.Platform.paywall();
+    if ((code === 'limit_reached' || code === 'busy_today') && window.Platform) window.Platform.paywall();
     if (!code) console.error(e);
     logTurn({ mode: 'error', player: text, raw: String(code || e && e.message || e).slice(0, 500) });
     $('cmd').value = text; renderJournal();
