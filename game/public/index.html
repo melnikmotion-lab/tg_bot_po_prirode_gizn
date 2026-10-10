@@ -1,0 +1,1615 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Пещера Серого Зуба</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: pixel viewport + character sheet on the left, journal + command line on the right; stacks on phones. One dark world by design. */
+:root{
+  color-scheme: dark;
+  --bg:#0b0916; --panel:#141126; --panel-2:#1d1834; --line:#2e2750;
+  --ink:#ecdfc6; --muted:#9a90b4; --ember:#f29a3c; --blood:#d4483a; --moss:#7fbf5a; --frost:#b39cff; --gold:#ecd06a;
+  --f-display:"Pixelify Sans", "Courier New", monospace;
+  --f-body:"PT Serif", Georgia, "Times New Roman", serif;
+  --f-ui:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:16px;padding-block:18px 28px;display:grid;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(22px,3.4vw,32px);letter-spacing:.02em;margin:0;text-wrap:balance}
+h1 span{color:var(--ember)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-family:var(--f-ui);font-size:12px;color:var(--muted)}
+.tools label{display:flex;gap:6px;align-items:center}
+select,button,input{font:inherit}
+select{background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:5px 8px;border-radius:2px}
+.btn{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);padding:6px 12px;border-radius:2px;cursor:pointer;font-family:var(--f-ui);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.btn:hover{border-color:var(--ember)}
+.btn[aria-pressed="true"]{border-color:var(--ember);color:var(--ember)}
+.btn:focus-visible,select:focus-visible,#cmd:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+.game{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:940px){.game{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}}
+.left,.right{display:grid;gap:12px;min-width:0;align-content:start}
+.view{position:relative;background:#000;border:3px solid #2a2346;box-shadow:0 0 0 1px #000,0 10px 40px rgba(90,40,160,.25);aspect-ratio:240/135;max-width:100%;overflow:hidden}
+.view canvas{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges;transition:filter .4s}
+.locname{position:absolute;left:8px;top:6px;font-family:var(--f-display);font-size:clamp(12px,1.8vw,16px);text-shadow:2px 2px 0 #000;pointer-events:none}
+.sheet{display:grid;gap:10px;background:var(--panel);border:1px solid var(--line);padding:10px 12px;font-family:var(--f-ui);font-size:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.lbl{color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-size:10px;display:block;margin-bottom:3px}
+.hearts{display:flex;gap:2px;flex-wrap:wrap;max-width:220px}
+.heart{width:10px;height:9px;background:var(--blood);clip-path:polygon(0 20%,20% 0,40% 0,50% 20%,60% 0,80% 0,100% 20%,100% 50%,50% 100%,0 50%)}
+.heart.empty{background:#3a2a2e}
+.stat{font-variant-numeric:tabular-nums}
+.badge{display:inline-flex;gap:4px;align-items:baseline;background:var(--panel-2);border:1px solid var(--line);padding:2px 8px;border-radius:2px}
+.badge b{font-family:var(--f-display);font-size:15px;font-weight:600}
+.badge.on{border-color:var(--gold);color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+@media (max-width:560px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.stat-box{background:var(--panel-2);border:1px solid var(--line);padding:4px 6px;text-align:center;font-variant-numeric:tabular-nums}
+.stat-box .k{display:block;color:var(--muted);font-size:10px;letter-spacing:.1em}
+.stat-box .v{font-family:var(--f-display);font-size:16px}
+.stat-box .m{color:var(--ember);font-size:11px;margin-left:3px}
+.stat-box.hit{border-color:var(--ember)}
+.chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px}
+.chips li{background:var(--panel-2);border:1px solid var(--line);padding:1px 7px;border-radius:2px}
+.chips li.lit{border-color:var(--ember);color:var(--ember)}
+.chips li.held{border-color:var(--frost);color:var(--frost)}
+.chips li.cond{border-color:#6a3a8a;color:#d8b0ff}
+.chips li.skill{color:var(--muted)}
+.chips li.skill.pro{color:var(--ink);border-color:#4a4270}
+.party{display:flex;flex-wrap:wrap;gap:8px}
+.mate{display:flex;gap:8px;align-items:center;background:var(--panel-2);border:1px solid var(--line);padding:4px 8px 4px 4px;min-width:0}
+.mate img{width:36px;height:36px;image-rendering:pixelated;background:#0b0916;border:1px solid var(--line)}
+.mate .nm{font-family:var(--f-display);font-size:14px}
+.mate .sub{color:var(--muted);font-size:11px}
+.journal{background:var(--panel);border:1px solid var(--line);padding:14px 16px;height:min(56vh,480px);overflow-y:auto;display:grid;gap:12px;align-content:start;min-width:0}
+@media (min-width:940px){.journal{height:calc(100vh - 260px);min-height:320px;max-height:640px}}
+.entry{max-width:65ch;min-width:0;overflow-wrap:anywhere}
+.entry.you{font-family:var(--f-ui);font-size:13px;color:var(--frost)}
+.entry.you::before{content:"> "}
+.entry.sys{font-family:var(--f-ui);font-size:12px;color:var(--muted)}
+.entry.thinking{color:var(--muted);font-style:italic}
+.entry .roll{display:inline-block;font-family:var(--f-ui);font-size:11px;color:var(--muted);border:1px solid var(--line);padding:0 6px;margin-bottom:4px}
+.entry .roll.ok{color:var(--moss);border-color:#3f5530}.entry .roll.fail{color:var(--blood);border-color:#5a2a25}
+.entry .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.entry .tag{font-family:var(--f-ui);font-size:11px;color:var(--muted);border:1px dashed var(--line);padding:0 6px}
+.entry .tag.good{color:var(--gold);border-color:#5a4a20}
+.say{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:start;max-width:65ch}
+.say img{width:40px;height:40px;image-rendering:pixelated;background:#0b0916;border:1px solid var(--line)}
+.say .who{font-family:var(--f-display);font-size:14px;color:var(--gold)}
+.say .txt{font-style:italic}
+.say .act{font-family:var(--f-ui);font-size:11px;color:var(--muted);margin:2px 0}
+.entry.ooc{font-family:var(--f-ui);font-size:13px;color:#cfe3ff;border:1px dashed #3a4a70;padding:8px 10px;background:#10142a}
+.entry.ooc .who{font-family:var(--f-display);color:var(--frost);font-size:13px;margin-bottom:4px}
+.entry.combat{font-family:var(--f-ui);font-size:12px;color:#d8b0ff;border-left:2px solid #4a2a6a;padding-left:10px;display:grid;gap:2px}
+form{display:flex;gap:8px}
+#cmd{flex:1;min-width:0;background:#0a090c;color:var(--ink);border:1px solid var(--line);padding:10px 12px;font-family:var(--f-ui);font-size:14px;border-radius:2px}
+#cmd::placeholder{color:#6b6170}
+.go{background:var(--ember);color:#1b1006;border:0;padding:0 16px;font-family:var(--f-display);font-size:15px;cursor:pointer;border-radius:2px}
+.go:disabled{opacity:.5;cursor:wait}
+.mode{font-family:var(--f-ui);font-size:11px;color:var(--muted)}
+.mode.off{color:var(--ember)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<style>
+/* Platform additions: turn counter, purchase dialog, mic button. The master tier is chosen by the server. */
+label[for="tier"]{display:none}
+.btn.quota{border-color:var(--gold);color:var(--gold)}
+.btn.quota.low{border-color:var(--blood);color:var(--blood)}
+.mic{flex:none;min-width:44px;min-height:44px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:6px;font-size:18px;cursor:pointer}
+.mic.on{border-color:var(--blood);background:#3a1620;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}
+.pw-back{position:fixed;inset:0;background:rgba(5,4,12,.78);display:grid;place-items:center;padding:16px;z-index:50}
+.pw{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:12px}
+.pw h2{font-family:var(--f-display);font-weight:600;margin:0;color:var(--gold)}
+.pw p{margin:0;color:var(--muted)}
+.pw-buy{display:grid;grid-template-columns:1fr auto;gap:2px 12px;text-align:left;padding:12px 14px;border:1px solid var(--gold);border-radius:8px;background:var(--panel-2);color:var(--ink);font:inherit;cursor:pointer;text-decoration:none}
+.pw-buy b{font-family:var(--f-ui);font-size:14px}
+.pw-buy span{grid-column:1;color:var(--muted);font-size:14px}
+.pw-buy em{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;font-family:var(--f-ui);color:var(--gold);font-weight:600}
+.pw-buy:disabled{opacity:.5}
+.pw-close{justify-self:end}
+/* Phones: picture on top, then the story and the command line; the character sheet goes below. */
+@media (max-width:939px){
+  .wrap{padding-block:8px 16px;gap:10px}
+  .game{display:flex;flex-direction:column;gap:10px}
+  .left,.right{display:contents}
+  .view{order:1;position:sticky;top:0;z-index:5}
+  .journal{order:2;height:44vh;min-height:220px}
+  #form{order:3}
+  .mode{order:4}
+  .sheet{order:5}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Пещера <span>Серого Зуба</span></h1>
+    <div class="tools">
+      <label for="tier">Мастер
+        <select id="tier"><option value="quick">быстрый</option><option value="default">вдумчивый</option></select>
+      </label>
+      <button class="btn" id="sound" type="button" aria-pressed="false">Звук: выкл</button>
+      <button class="btn" id="music" type="button" aria-pressed="false">Музыка: выкл</button>
+      <button class="btn" id="restart" type="button">Новая игра</button>
+    </div>
+  </header>
+  <div class="game">
+    <div class="left">
+      <div class="view"><canvas id="scr" width="240" height="135" aria-label="Вид от первого лица"></canvas><div class="locname" id="locname"></div></div>
+      <div class="sheet">
+        <div class="row">
+          <div><span class="lbl">Здоровье</span><div class="hearts" id="hearts"></div></div>
+          <div><span class="lbl">Класс брони</span><span class="badge"><b id="ac">16</b></span></div>
+          <div><span class="lbl">Мастерство</span><span class="badge"><b>+2</b></span></div>
+          <div><span class="lbl">Вдохновение</span><span class="badge" id="insp"><b>—</b></span></div>
+          <div><span class="lbl">Второе дыхание</span><span class="badge" id="wind"><b>—</b></span></div>
+          <div><span class="lbl">Золото</span><span class="stat" id="gold">0</span></div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div><span class="lbl">Состояния</span><ul class="chips" id="conds"></ul></div>
+        <div><span class="lbl">Сумка</span><ul class="chips" id="inv"></ul></div>
+        <div><span class="lbl">Отряд</span><div class="party" id="party"></div></div>
+        <div><span class="lbl">Навыки воина (жирные — с мастерством)</span><ul class="chips" id="skills"></ul></div>
+      </div>
+      <div class="mode" id="mode">Подключаю мастера…</div>
+    </div>
+    <div class="right">
+      <div class="journal" id="journal" aria-live="polite"></div>
+      <form id="form" autocomplete="off">
+        <input id="cmd" type="text" maxlength="240" placeholder="Что ты делаешь? «Мастер, …» — вопрос ведущему">
+        <button class="go" id="go" type="submit">Сделать</button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+/* Platform layer: connects the game to our server (AI master, turn limits, Stars purchases)
+   and to Telegram when the page runs as a Mini App. Loaded before the game script. */
+(() => {
+'use strict';
+const W = window.Telegram && window.Telegram.WebApp;
+const tg = W && W.initData ? W : null;
+if (tg){
+  tg.ready(); tg.expand();
+  try { tg.setHeaderColor('#0b0916'); tg.setBackgroundColor('#0b0916'); } catch(e){}
+  document.documentElement.classList.add('in-tg');
+}
+let guest = null;
+try { guest = localStorage.getItem('gf-guest'); if (!guest){ guest = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)); localStorage.setItem('gf-guest', guest); } } catch(e){ guest = 'tmp' + String(Math.random()).slice(2, 12); }
+
+// One player action can need several AI calls (check, then outcome); the server counts it as one turn.
+let turnId = 'boot';
+window.addEventListener('submit', () => { turnId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }, true);
+
+const headers = () => ({ 'content-type': 'application/json', 'x-tg-init': tg ? tg.initData : '', 'x-guest': guest, 'x-turn': turnId });
+async function post(url, body){
+  let r, j = null;
+  try { r = await fetch(url, { method: 'POST', headers: headers(), body: JSON.stringify(body) }); } catch(e){ throw { code: 'upstream_error' }; }
+  try { j = await r.json(); } catch(e){}
+  if (j && j.quota) setQuota(j.quota);
+  if (!r.ok || !j || j.error) throw { code: (j && j.error) || 'upstream_error' };
+  return j;
+}
+
+let config = { bot: '', ai: true, products: [] };
+const ready = fetch('/api/config').then(r => r.json()).then(c => { config = c; }).catch(() => {});
+const sample = { json: async prompt => (await post('/api/ai', { prompt })).data };
+const db = { collection: () => ({ add: doc => post('/api/log', doc).catch(() => {}) }) };
+window.claude = { use: async name => {
+  await ready;
+  if (name === 'sample'){ if (!config.ai) throw { code: 'sampling_disabled' }; return sample; }
+  if (name === 'db') return db;
+  throw { code: 'not_declared' };
+} };
+
+/* ---------- turn counter and purchases ---------- */
+let Q = null;
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+let badge = null;
+function setQuota(q){
+  Q = q; if (!badge) return;
+  if (q.pass) badge.textContent = '∞ ходов до ' + new Date(q.pass).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  else { const left = Math.max(0, q.free - q.used) + q.bonus; badge.textContent = 'Ходов: ' + left; badge.classList.toggle('low', left <= 5); }
+}
+function paywall(){
+  if (document.querySelector('.pw-back')) return;
+  const back = el('div', 'pw-back'), box = el('div', 'pw');
+  box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+  box.append(el('h2', null, 'Ещё ходов?'));
+  const used = Q ? `Бесплатно ${Q.free} ходов в день, они обновляются каждые сутки.` : 'Бесплатные ходы обновляются каждые сутки.';
+  box.append(el('p', null, used));
+  if (tg){
+    config.products.forEach(p => {
+      const b = el('button', 'pw-buy'); b.type = 'button';
+      b.append(el('b', null, p.title), el('span', null, p.description), el('em', null, `${p.stars} ⭐`));
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          const { link } = await post('/api/invoice', { product: p.id });
+          tg.openInvoice(link, status => { if (status === 'paid'){ refresh(); close(); } b.disabled = false; });
+        } catch(e){ b.disabled = false; }
+      });
+      box.append(b);
+    });
+  } else {
+    box.append(el('p', null, 'Покупки и больше бесплатных ходов — в Telegram-версии игры.'));
+    if (config.bot){ const a = el('a', 'pw-buy', 'Открыть в Telegram'); a.href = `https://t.me/${config.bot}`; a.target = '_blank'; a.rel = 'noopener'; box.append(a); }
+  }
+  const x = el('button', 'btn pw-close', 'Закрыть'); x.type = 'button'; box.append(x);
+  const close = () => back.remove();
+  x.addEventListener('click', close); back.addEventListener('click', e => { if (e.target === back) close(); });
+  document.addEventListener('keydown', function esc(e){ if (e.key === 'Escape'){ close(); document.removeEventListener('keydown', esc); } });
+  back.append(box); document.body.append(back); x.focus();
+}
+const refresh = () => fetch('/api/me', { headers: headers() }).then(r => r.json()).then(j => j.quota && setQuota(j.quota)).catch(() => {});
+
+/* ---------- voice input ---------- */
+function addMic(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const form = document.getElementById('form'), cmd = document.getElementById('cmd'), go = document.getElementById('go');
+  if (!SR || !form) return;
+  const mic = el('button', 'mic', '🎙'); mic.type = 'button'; mic.setAttribute('aria-label', 'Сказать голосом');
+  let rec = null;
+  mic.addEventListener('click', () => {
+    if (rec){ rec.stop(); return; }
+    try { rec = new SR(); } catch(e){ mic.remove(); return; }
+    rec.lang = 'ru-RU'; rec.interimResults = true; rec.maxAlternatives = 1;
+    const before = cmd.value ? cmd.value.trim() + ' ' : '';
+    rec.onresult = e => { cmd.value = before + [...e.results].map(r => r[0].transcript).join(''); };
+    rec.onend = () => { rec = null; mic.classList.remove('on'); cmd.focus(); };
+    rec.onerror = () => {};
+    mic.classList.add('on'); rec.start();
+  });
+  form.insertBefore(mic, go);
+}
+
+function mount(){
+  const tools = document.querySelector('.tools');
+  if (tools){
+    badge = el('button', 'btn quota', 'Ходов: …'); badge.type = 'button';
+    badge.addEventListener('click', paywall);
+    tools.prepend(badge);
+  }
+  addMic(); refresh();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
+window.Platform = { paywall, telegram: !!tg };
+})();
+
+</script>
+<script>
+(() => {
+'use strict';
+const W = 240, H = 135;
+const cv = document.getElementById('scr');
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const $ = id => document.getElementById(id);
+const SAVE_KEY = 'grey-fang-save-v8', LEGACY_KEY = 'grey-fang-legacy-v1';
+
+/* ---------- D&D 5e: fighter, level 1 ---------- */
+const STATS = [['СИЛ','Сила'],['ЛОВ','Ловкость'],['ТЕЛ','Телосложение'],['ИНТ','Интеллект'],['МДР','Мудрость'],['ХАР','Харизма']];
+const mod = v => Math.floor((v - 10)/2);
+const fmtMod = m => (m >= 0 ? '+' : '') + m;
+const PROF = 2;
+const SKILLS = [ // [название, характеристика]
+  ['Атлетика','СИЛ'],['Акробатика','ЛОВ'],['Ловкость рук','ЛОВ'],['Скрытность','ЛОВ'],
+  ['Магия','ИНТ'],['История','ИНТ'],['Анализ','ИНТ'],['Природа','ИНТ'],['Религия','ИНТ'],
+  ['Уход за животными','МДР'],['Проницательность','МДР'],['Медицина','МДР'],['Внимательность','МДР'],['Выживание','МДР'],
+  ['Обман','ХАР'],['Запугивание','ХАР'],['Выступление','ХАР'],['Убеждение','ХАР'],
+];
+const FIGHTER_SKILLS = ['Атлетика','Внимательность','Запугивание','Выживание'];
+const SAVE_PROF = ['СИЛ','ТЕЛ'];
+const CONDITIONS = {
+  poisoned:   { name:'Отравлен',   rule:'помеха на броски атаки и проверки характеристик' },
+  frightened: { name:'Испуган',    rule:'помеха на проверки и атаки, пока источник страха виден; нельзя приближаться к нему' },
+  blinded:    { name:'Ослеплён',   rule:'ничего не видит, проваливает проверки на зрение, помеха на атаки, атаки по нему с преимуществом' },
+  prone:      { name:'Сбит с ног', rule:'помеха на атаки; встать — половина перемещения' },
+  charmed:    { name:'Очарован',   rule:'не может атаковать очарователя, тот получает преимущество в общении' },
+  restrained: { name:'Опутан',     rule:'скорость 0, помеха на атаки и спасброски ЛОВ' },
+};
+const condName = id => CONDITIONS[id]?.name || id;
+
+/* ---------- places, enemies, companions ---------- */
+const ORDER = ['clearing','cave','corridor','stairs','lair'];
+const PLACES = {
+  clearing: { name:'Поляна у пещеры', light:'dusk', about:'закат, трава и мох, грязная лужа с червяками, куст с ягодами, сосны с шишками, камни и ветки; чёрная пасть пещеры с каменными «зубами»' },
+  cave:     { name:'Сырая пещера', light:'dark', about:'низкий каменный тоннель, сталактиты, лужи, светящиеся голубые грибы, под сводом спят летучие мыши; дальше проход в рукотворный коридор' },
+  corridor: { name:'Древний коридор', light:'dark', about:'кирпичный коридор древних гномов; посередине нажимная плита ловушки (дротики из стен, яд, спасбросок ЛОВ 13); гоблины-дозорные; в конце — спуск' },
+  stairs:   { name:'Лестница в склеп', light:'dark', about:'старая лестница вниз, настенный факел, красное знамя; здесь бродит Призрак Хранителя' },
+  lair:     { name:'Логово Серого Зуба', light:'dim', about:'тронный зал: каменный трон, жаровни, красные знамёна с черепом; на троне вождь Серый Зуб, рядом орк-телохранитель Гром; сбоку сундук с сокровищем' },
+};
+const ENEMY_STATS = {
+  bat:          { name:'Летучая мышь', hp:1,  ac:12, atk:0, dmg:'1' },
+  goblin:       { name:'Гоблин',       hp:7,  ac:15, atk:4, dmg:'1d6+2' },
+  ghost:        { name:'Призрак Хранителя', hp:10, ac:11, atk:3, dmg:'1d6 некротический, при попадании спасбросок МДР 12 или испуг' },
+  goblin_chief: { name:'Серый Зуб',    hp:21, ac:15, atk:4, dmg:'1d6+2, две атаки' },
+  orc:          { name:'Гром',         hp:15, ac:13, atk:5, dmg:'1d12+3' },
+};
+const ENEMIES = Object.keys(ENEMY_STATS);
+const newEnemy = (type, extra = {}) => ({ type, name: ENEMY_STATS[type].name, hp: ENEMY_STATS[type].hp, ac: ENEMY_STATS[type].ac, state:'idle', hidden:false, ...extra });
+const START_ENEMIES = {
+  clearing: [],
+  cave:     [newEnemy('bat', { name:'Стая летучих мышей', hp:3 })],
+  corridor: [newEnemy('goblin', { name:'Гоблин-дозорный Хряп' }), newEnemy('goblin', { name:'Гоблин-дозорный Шмыг', state:'asleep' })],
+  stairs:   [newEnemy('ghost', { hidden:true })],
+  lair:     [newEnemy('goblin_chief'), newEnemy('orc')],
+};
+const COMPANIONS = {
+  skrip: { name:'Скрип', place:'clearing', hp:7, ac:13, atk:4, dmg:[4, 2], weapon:'ржавый нож',
+    look:'тощий гоблин лет тридцати (для гоблина — старик), бурая шапка из крысиной шкуры, на левой руке не хватает двух пальцев, глаза жёлтые и бегающие',
+    bible:`Скрип — гоблин-изгой. Десять лет служил у Серого Зуба «чистильщиком блестяшек»: натирал его золото. Неделю назад попался на краже серебряной ложки; орк Гром откусил ему два пальца, и Скрипа выгнали из пещеры. Теперь он прячется в кустах у входа, грызёт сырую репу и ненавидит Грома.
+ГОЛОС: говорит о себе в третьем лице («Скрип думает…», «Скрипу не нравится»), тараторит, хихикает «хе-хе», причитает «ой-ой-ой», ругается по-гоблински: «чтоб тебе в лужу сесть», «крысиная отрыжка». Льстит сильным, огрызается слабым. Всё ценное называет «блестяшки».
+ХОЧЕТ: корону Серого Зуба (не золото — именно корону, «чтоб все кланялись»), чтобы Гром получил по заслугам, и есть.
+БОИТСЯ: Грома, открытого огня у лица (обжёгся в детстве). Призраков не боится — считает их «скучными».
+ЗНАЕТ (тайны, отдаёт только за блестяшку, еду или когда доверяет): в коридоре третья плита — ловушка, из «дырявых стен» летят отравленные дротики; дозорный Шмыг вечно спит, а Хряп глуповат и любит грибы; за троном Серого Зуба есть лаз к сундуку; Серый Зуб глух на левое ухо.
+ВРЁТ по мелочам: при встрече говорит, что «просто шёл мимо, собирал шишки»; набивает цену своим знаниям.
+НЕ ДЕЛАЕТ: не лезет первым в опасность; не сражается с Громом лицом к лицу; не принимает выдумки о себе — если игрок придумывает его прошлое («ты же сидел в тюрьме»), фыркает и поправляет («Тюрьма? У гоблинов нет тюрем, у гоблинов есть яма. И Скрип в яме не сидел!»).
+ОТНОШЕНИЕ растёт от блестяшек, еды, защиты, насмешек над Громом; падает от угроз, огня у лица, жалости к Серому Зубу. Если отношение −4 и ниже и игрок у сундука — Скрип хватает корону и удирает.`,
+    firstScene:'прячется в кустах ягодного куста у края поляны и подглядывает; если его заметят — юлит и врёт, что просто шёл мимо' },
+  tina:  { name:'Тина Полынь', place:'cave', hp:9, ac:12, atk:3, dmg:[4, 1], weapon:'праща',
+    look:'полуэльфийка двадцати шести лет: рыжая коса, веснушки, острые уши, зелёный плащ, кожаный фартук с кармашками, плетёная корзинка с грибами',
+    bible:`Тина Полынь — травница из деревни Ясеневый Брод. В деревне лихорадка; лекарство варят из «волчьих свечек» — светящихся грибов, которые растут только в этой пещере. Ей нужно двадцать штук, собрала двенадцать. Ещё у неё пропал младший брат Ивар (19 лет): месяц назад ушёл сюда за «гоблинским золотом» и не вернулся. На шее у Тины медальон с пером — Ивар подарил его ей.
+ГОЛОС: сдержанная, сухая ирония, говорит коротко и по делу, сравнивает людей с растениями («упрям как лопух», «колючий, как чертополох»). Не любит пустых обещаний и громких слов. С незнакомцами вежлива, но насторожена; не командует «стой, кто идёт» — скорее, не отрываясь от работы, бросает «не наступи на грибы».
+ХОЧЕТ: собрать грибы и вернуться в деревню; узнать, что случилось с Иваром.
+БОИТСЯ: нежити (в детстве видела упыря), темноты без огня.
+УМЕЕТ: раз за отдых лечит травами 1d8+2; знает яды и противоядия (снимет отравление, если есть минута); различает травы и грибы.
+ТАЙНА, которой она НЕ знает: Призрак Хранителя на лестнице — это Ивар. Если Тина увидит призрака и заговорит с ним, он узнает медальон и сможет упокоиться без боя.
+НЕ ДЕЛАЕТ: не идёт в бой первой (стреляет из пращи из-за спины); не врёт о брате; не принимает выдумки о себе — спокойно поправляет.
+ОТНОШЕНИЕ растёт от помощи с грибами, честности, бережного отношения к живому; падает от жестокости, лжи, мародёрства.`,
+    firstScene:'сидит на корточках у стены пещеры, срезает ножом светящиеся грибы в корзинку и вполголоса считает их; игрока замечает не сразу' },
+};
+const FEATURES = ['rubble','web','bones','barrel','crate','door','torch','chains','puddle','crystals','roots'];
+/* ---------- state ---------- */
+function rollStats(){
+  const d6 = () => 1 + Math.floor(Math.random()*6);
+  let st, sum;
+  do { st = {}; sum = 0; for (const [k] of STATS){ const r = [d6(),d6(),d6(),d6()].sort((a,b) => a-b); st[k] = r[1]+r[2]+r[3]; sum += st[k]; } }
+  while (sum < 68 || st['СИЛ'] < 12);
+  return st;
+}
+function newGame(){
+  const stats = rollStats(), maxHp = 10 + mod(stats['ТЕЛ']);
+  const places = {}; for (const p of ORDER) places[p] = { enemies: START_ENEMIES[p].map(e => ({ ...e })), visited: p === 'clearing' };
+  return {
+    stats, hp: maxHp, maxHp, ac: 16, gold: 0, hitDice: 1, secondWind: true, inspiration: false,
+    inventory: ['длинный меч','кольчуга','факел','огниво','верёвка','краюха хлеба'],
+    torchLit: false, held: 'длинный меч', left: null, itemArt: {},
+    place: 'clearing', places, conditions: [], exhaustion: 0,
+    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval:0, hp:c.hp, alive:true, visible: id === 'tina', healUsed:false, talk:[] }])),
+    zones: Object.fromEntries(ORDER.map(p => [p, { i:0, f: { cave:['crystals','roots'], corridor:['web','barrel'] }[p] || [], title:'' }])), turnsHere: 0, lastBanter: -9, combat: false,
+    chronicle: [], history: [], journal: [], turn: 0, over: null, chestTaken: false, legacyFound: false,
+  };
+}
+const INTRO = 'Закат. Ты стоишь на поляне перед чёрной пастью пещеры, похожей на пасть с каменными зубами. Говорят, внутри, в тронном зале под старым склепом, гоблинский вождь Серый Зуб стережёт сундук с золотом. Ты воин: на тебе кольчуга, на поясе длинный меч, в сумке факел и огниво. Где-то в кустах хрустнула ветка.';
+let S;
+try { const raw = localStorage.getItem(SAVE_KEY); S = raw ? JSON.parse(raw) : null; } catch(e){ S = null; }
+const freshStart = !S || !S.places;
+if (freshStart) S = newGame();
+function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch(e){} }
+let LEGACY = [];
+try { LEGACY = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]'); } catch(e){ LEGACY = []; }
+const saveLegacy = () => { try { localStorage.setItem(LEGACY_KEY, JSON.stringify(LEGACY.slice(-3))); } catch(e){} };
+
+const here = () => S.places[S.place];
+const placeInfo = () => PLACES[S.place];
+const hasItem = re => S.inventory.some(i => re.test(i));
+const hasCond = id => S.conditions.some(c => c.id === id);
+const torchLit = () => S.torchLit && !!S.left && /факел/i.test(S.left) && hasItem(/факел/i);
+const effLight = () => torchLit() ? 'torch' : placeInfo().light;
+const skillBonus = name => { const sk = SKILLS.find(s => s[0] === name); if (!sk) return null; return mod(S.stats[sk[1]]) + (FIGHTER_SKILLS.includes(name) ? PROF : 0); };
+const saveBonus = ab => mod(S.stats[ab]) + (SAVE_PROF.includes(ab) ? PROF : 0);
+const attackBonus = () => mod(S.stats['СИЛ']) + PROF;
+// disadvantage forced by conditions (5e)
+function forcedDisadvantage(kind, ability){
+  const why = [];
+  if (hasCond('poisoned') && kind !== 'save') why.push('отравлен');
+  if (hasCond('frightened') && kind !== 'save') why.push('испуган');
+  if (hasCond('blinded') && kind === 'attack') why.push('ослеплён');
+  if (hasCond('prone') && kind === 'attack') why.push('сбит с ног');
+  if (hasCond('restrained') && (kind === 'attack' || (kind === 'save' && ability === 'ЛОВ'))) why.push('опутан');
+  if (S.exhaustion >= 1 && kind === 'check') why.push('истощение');
+  if (S.exhaustion >= 3 && kind !== 'check') why.push('истощение 3');
+  return why;
+}
+
+/* =====================  PIXEL RENDERER (240x135, fixed ramps, ordered dither)  ===================== */
+const HANDS = {"torch_lit": ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAB0CAYAAAA1gjRlAAAHo0lEQVR42u1bXWgUVxg9s5VNNDFd4iZuVk2W0CTQhhAwD4Ha4MMKhVYKlaKk0L4YwVIErdQSWn2xgkGj9EElUSgJBKG6KEIQs4WYVgg0gbD5qWbLkrUx/4aNTY0baKYPyb25Mzuzmf2ZuZvd+UBu7mQ3c8+55zv3uzNXwAwzzDDDDDPMMMMMM8wwwwwzDI36fKvYUpot8hzDFp4332+zKF5nSTkWeCPoOQYLTwIIuPp8qwgAYqNTFBudIgDUuayGjMGSCqlAlCBcmBCECxNCRuR/S2m22FKaLYqNTq4+IPAC33AkP3IwHGbfkiqKaL09z+W+llRKCzFQL2ZECiimQY0dnx99io755cwwQbYYEhudouipEnkogHsKsMVQq9uTGR7QUpotkjK4wfspvd5wJB9GL4lcCOgOrdCZ5zHrKZECdS5rZLlbY0edy0pVYIQauHtAncuKZ72LtF9Rm4vu0Arq861id2hFdxK4EEDkX1GbK2lRXQkAOFudTT/XHVpJTw+IAA8AA0MSkvQGz1UBz3oXgRo7zX2qgBo7JYUohWyX08oDKmpzgb65VfB9cxIFPOtdpAap9tBk0xFQn28VyT8CUlEBACq+doF9KKInCRYe8pcogER15boHrF3vGVumnrHpCeiYXxYIeLr0yWaetmvX004B3aEV1Lms6Blbli59ZOYHhtbToDZXogC9jNDCQ/7y4keiAGYpTEsFRKwCJBwnJODl39PrOQEXBVD5Ew9wnFD2AsY/0koBEvkDwNRPyqtBuu0GO+aXBYkBsvJXSYO03AtEKECuBKYO0PsZoeEEsBuhiCBKqLGrk7TZCeiYXxZU3wEwCugZW9b9xSjXzZDiDBMFGBiGE2C35YpXV2yrVR5bBzAKaL09j6srNthtuen7SOyOvXj1dZjM9VtPj+KOvdiwcQg8FFBoy8Xuwjw47HkAgGOhAACgxVa6KoS5VxifeYWZ0CLmQou6jtHwEyJrgCTSbrGvAwdgGHguBJCYCa2b4PjMK9XfpV0KkCi0O6kKTp/+HgBw6dL5dRLmjDkrwJWA4uJSlJe/K7k+OjqC588DmUFARisAAIpt2eK+d2xwFW7D2Mxr7K924Pydp3geemPYuFLmhIircBuX+6bUEZmMJmBs5nVmE2CmgJkCZgqYKWCmgJkCGUbA9Ou3uBNv+POALGsO3QRN/t6Bon31AP7BoartcDnzDCdA4AGaxMT4FJy7HZgYn8LeI6fo9fDyv0JaEECAs6DbnizAXbIEAPAGtwIA3CVLcO52UFIIGUYQIRgx2yzo696/AQBlZeXw+0fp946799CfWVXoTYKgF+iJ8Sk6wyxQLXHcvQdfnu/A0FBf6hOQZc0RL168ji/ef1sCOh7gJILBALq67kuu6UVE0hTQf7sZ3uDWuEGz8eDBLxi420SVBEC3dBCSBf67W49RUlKa8ICCwQDc7g8jrrtLlnQhQUjWzHu9DwGAkhAMBiSEqPV7e3+T/M3Z2SkcPPhZxOfLysoBAGfOHE8qCQkXQix4MlCv9yFKSkopCDWwPl8/BUuitvYD2me/HwwGMDn5IrU8IMuaIx49elICYHLyBYqKdsHn60dBgQOzs1MoKHDA7x9GWdl7KCraFde9enoeIRxeSnoKJL0UJuCrqvbSPmnbzh2OqAC1tG1PFtDVdT/1TFBJAWrRdu4w2p4sJDTYZOe/oZuhticLEq+INZKxwuiyHZbPPpG5PNrbbyV0n/b2G6m5HSYuTaL60Lc0/5W8YeBuEy1utKwwzc0/IhR6qYsBJsUDDhz4RHsaMD7g94/StX2jvh65z8UEf/j5D02flVSAa1WhXiQkTQFk/VdrEwmfrx/T0+O6EGBJBLy8+CG5rtQnQMjntbY9PY90Ax+3ArKsOWJn52MAwJUrzRISWlqv4VjDV6pKaGm9hj9H/trwHoODIzh79pRu5hcXAWTWOzsfw+O5R5dBFiQpfZXAnzx5CoODI9TgNmr1NkDNBLDACQB5/b9RNDVdhsdzLyYTJMXPzZtX+KUAK3d21lmDKihwaNojKHnGRn09DTAqAWpyV3NpLSSQ9NAafv8wHw8g6zvJRy2yjYWEUOilpsHpDT6CAPmsx1q0aCWBnd2oBBj5XoDkutzkYi1kfL5+TTMcDi9h57b/wPuY3JaNcj3Wak5pIxTN3Unwejss/OrtE5WWNnkko6RVI+Eb985VEpx5xh+U9Hjuwe8fpQ8s1cpS8nMsZWy0ltyvsrIGl73T3A5IbGEruWi1POkTEqJtfLS27e03EA4vUQXwCIt8w8IOUqkvr/42+rxa3+frRzi8hENV28EzLFq2stG2thspRq0vXyl4pYDw8Uf1YrwvHGKt7OQ1ALsMcjPBRL5MXnzEA97IUyC6ERArCbOzU6rgN/UxOa0kRKsQuR2TI4+p9CYh1aRPCaiq2htzHsdKghbwXFMgHjPTSkK0vE+JFEjE0bWQoHXvzy0F2Bog2STEkvfcUkBe2SWThFiCWwoQBRDQpLpLlIRUdX1FD2BBy9t4S+RYwXMvhFgFsK3fPxz190ptPMaXsv9fwGbbAb9/WFUh8lbPd/ncSmGbbYfEIPUAz+2JEJG4liDSVmsTmXleKfA/VyKka55if0EAAAAASUVORK5CYII=", "data:image/png;base64,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", "data:image/png;base64,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"], "torch_unlit": "data:image/png;base64,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", "fist": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAB0CAYAAAA1gjRlAAAEkUlEQVR42u2awWsTWRzHv5HSofQyEIqWCtHSLDR2cqnQXrSXuJSAWgKrJ0+rgt7aBT34FyhobyrqnnrSheIqiGgv1ksvXlqaQqd0N7AxlSDkUiS9ZA/6G14nM5k3mXnTp/4+l9eXmQn5ft/v/X6/NxRgGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhGIZhomH09rd+WuFGb3/r48dGi/4+CDN6Dmq1X716h9HcCDbKW/jn36pzz/FjQ849zb3d1A9hAAkn0QCwUd7Cs6cv9t23tlb2NEOlET1JiBdXe6O8BQBYXHy+7z7b3nSMcZuhMipSSRgwNnYSd+7cbRMdRDb7CwDAsnJO5Bw/NoQ4zUglsd8B4MyZ88hkhrv6LjJCNOPZ0xe4efNaZBN6VIY9AGflJicmujaAtodIHOKVRACJX1srt11bWnrdtQkilco2ZmfnUCxORTYhFbf427cftK1apbKNTGYYL1/+hYGBI/uemZw85Vx33+81r1S2AQCFwjQsKxfZhNi3wMLCnxgc/JqoMplh5wdXKts4e/Y3Z07XyZRareppijgWCtPO80tLr/WsAkZvf8sw+nD69K9dPV+rVWHb68hmT6Be38HAwBHU6zvI58dRq1Udc8nAJ0/m9YqAbz+mVShM48LFc9gobzk9gMwIAFevXAcAR+zg4BBWVz8gnx+PPWEriQDKA91y4eI5x4ROaBkBlADFva4zh1R86cLCw8iJ1ItHj++3lUPtzgKUA5aX38A005ibuwXLykk9O5obweTEhO9ed1+Lo6dQ2gqLPYHYznaay+5/4u3bv/XLAaJ4qtfucPWb2/YmHj2+L50EtYwAo7e/dfjw0chli+q+3xhHBChJgs293dSnT/9hefmN0+HJjqurH/aJpz7Aa+538tTihQglQ9tex6VLv0slwtHcCK5eue674rQ1RDPo1FksTrW6iQSlL0S8EmHQaFk5zM/f8zSBWmPxc8oDpdIMisWp0C9KlFaBy5dnQ9frTGYYpdIMbtz4I/Be97mADAxjhFIDxEToPsjIzIOgQ5K7KpRKM7QtAk1QvgUMow/Z7AnpZyjMw4r3Ko8y2yKRl6KG0Sd1r2mmI4t3G0H5xe/QpNwAmTIVJkpkxXvlFa9oSMSAuKLENNOhxIt5xZ0kyYSUDuK7qRZhxHfKDamfRbxXbrCsnJpWWFb82NhJAMDKyvtQ7XKnUSyffvetrLyHbW9icfH5wUcAvUANOvjIjGJzJNt3aJEDqGESV8994Amauz+XGZWdBsPSaHyWOv35zbsRT+ZpVQbDdIxhO0e/s4QWEdDc2001m19g2+uJiVf6QiSKCfX6TmLitTJAzAdJidcmB4TJB3GKr9d39IuATvkgbvH5/Lh+Bvjlg7jF03dpaYA7H6gSr2UOiKs/kM0fWkdAnHiJ16YRirtB8hNPOYXGWq2qfwSEbZA6iXeP39UWaDQ+t61g0EiR43cdSPi/xaNEAYAWVQW/FRVH216HaaYDv7vne4mAMCYAkBKvfRnsVBo7YZppqTMFAPwPGAJmyV8Kkt4AAAAASUVORK5CYII=", "fist_left": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAB0CAYAAAA1gjRlAAAEhklEQVR42u2ZQWgbRxiFn4yxD6bFkApscjCEKBA18iWF5FJ8SSCoTRsMbaHntJDenEJ8y6k5OKTWzSl2evLJLgjHARNi9RD3YkN0WcUyeI0TQR07iIAupbgX9TTD7HpXml3trFbJ+8DMznol7Xvzzz//7AKEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgghJDyDA0PND1K0+HvzpiGPu3U//XGP9KvXB/L8TnUPr14fYKe6h3x+Ql5z/N8/qbgMSMUhXBW9vLSKXC4LAKhUqgCAXC6L89mz0pR8fiI2I/rjGG1VtG3vwrZ3kcmcg23vynOTuAH1cyIqTJuQMiV6p7onR1gI1WVy8gbu3PkZL1++QOINGBwYas7MPMS3333lEB1GuKBW28f6+mPHOVNGRBYBa2vPUalUQ4tWefLkD2xubclIAoB8fsKICamoxBcKsxgbO9PxDdVq+7hy5dqJ87lc1ogJ/VGNvLh5YYJ63Kq/ufmX4zvr9SOMjZ05cT0AzMw8xPT0rUgTY8erQKVSRan0VPYzmXMolZ46RPiJtawyrl//BrXavjx3+fLnsq9+vlbbx+HhQbJywODAUPPmzSmHgMPDA4yOnoZllZFOj6BeP0I6PQLb3kYm8ylGR0+H+q2NjWc4Pv43WVPACyF+fPyi7It2fmFOJrbz2bPa7fLSKtbXHycvCXpFgB/zC3NYXlrt6Ganp28lPwL8WF5adeSKoESxwnjRF8Wy5R5pLxYXf+/odxYXf0vmXkBkaZnFL12S898rN2xubcniRmeFmZ29h0bjnZEEGEkOuHr1a+3r1TwgNkRq2ezXNzH3u5IE7/3yQOtaFVEVmjIhsggQ679f2wmWVcbbt38bMaCvE/Hu4kfMda++ECKu1203Np4ZEx86AsQeAAAKhVmHCfMLc/jxh598I2F+YU4rCVYqVdy9e9tY8gtlgBj1tbXnKBZX5DKoihSlr5f4qanbcsssngi1ak0nQG0DVOFCgLv+b8f9+7+iWFwJlARF8fPoUaF7U0ANd3XU1QSVTo9o7RG8cka7vskE2NIAv3D3y9I6JojpoYttb3cnB4j1XcxHnbANYkKj8U7r5kyLP2GAe9SDFi26Jqij29KAGN4LpPwebArxQQsZyyprjXAco6tlgM5cj6Kaizu7axvwZ+lF02tpc/O+mtBXLK7AtnflA0u/slQcByljW7Xi9y5c+Kyrr8lTX37xfTPIuiwEtNr46LamHnQG3gypGxb1Jr367uqv3fV+fcsqJyIR9ulsZVttbf12f+36urVAbFMgDEEruzgrvFgeiooXH70qvmMDgppQrx8lSnwkBgQxISnz3mGAeExl2oSkhb40YHz8YuB5HNSEpIqXUyBMMtM1IYnz3jMHmDIhifPeYYBaA0RtQpJDXxrgruyiNKEXkBEgRIvqrlMTemH0ZQ5QRbvbsCVyL4h3JEE1AtTWtrdb/t+rTXriC1QJDg+fgm1v+0aIuzX5Lr9rpfDw8ClHgnxfxANA6uOPPmnqmtAutHtNPAD8D6feNj1L4bDYAAAAAElFTkSuQmCC"};
+const loadImg = src => { const im = new Image(); im.src = src; return im; };
+const HAND = { lit: HANDS.torch_lit.map(loadImg), unlit: loadImg(HANDS.torch_unlit), fist: loadImg(HANDS.fist), fistL: loadImg(HANDS.fist_left) };
+const hexc = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+const BAYER = [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(v => (v+.5)/16);
+const RAMP = {};
+Object.entries({
+  stone:['#120e1c','#211a33','#342a4d','#4d3f69','#6b5a86','#9483aa'],
+  mortar:['#0a0812','#120e1c','#1c1629','#2a2140','#3a2f55','#4d3f69'],
+  floor:['#120d0b','#261b15','#3d2b20','#59402d','#7a5a3e','#a07a52'],
+  riser:['#08060a','#140f0c','#22190f','#33251a','#4a3626','#5e4632'],
+  ceil:['#06050b','#0e0b16','#16112a','#1f1838','#2a2140','#342a4d'],
+  dark:['#04030a','#07060e','#0b0914','#100c1a','#14101f','#181326'],
+  banner:['#1a0608','#3a0c10','#5e1418','#86202a','#a83038','#c84a4a'],
+  ghost:['#0f2140','#1d3456','#2f5c8f','#4f86c6','#86bce8','#c4e6ff','#ffffff'],
+  steel:['#0e0d14','#1e1d27','#33323f','#4c4b5a','#6b6a7c','#908fa2','#bdbccc','#e6e6f0'],
+  gold:['#2a1c06','#5a400e','#8e6a1c','#c49a30','#ecd06a'],
+  wood:['#1e1008','#3a2010','#5a3418','#7a4a22','#9a6430'],
+  flame:['#5a1206','#9a2208','#d8420e','#ff7a1a','#ffae2e','#ffde5a','#fff6c8'],
+  sky:['#0e0820','#1e1040','#36185e','#5a2476','#8a3478','#c0506c','#ec8a6a'],
+  mount:['#100c22','#1a1434','#261e48','#33285a','#40336c'],
+  pine:['#05080e','#0a1216','#101c1e','#182824','#22362c'],
+  cliff:['#14101c','#241c2e','#362a40','#4a3c54','#5e4e68','#7a6884'],
+  grass:['#0c140c','#14240f','#1f3614','#2c4a1a','#3c6022','#527a2c','#6e9638'],
+  dirt:['#1a120c','#2e2016','#463222','#5e4430','#7a5a40','#987452'],
+  mud:['#120c08','#22160e','#342216','#463020','#5a3e2a','#6e4e36'],
+  puddle:['#0a0e16','#141c2a','#22304a','#3a4e6e','#6a84a8','#a8c0e0'],
+  bark:['#0a0604','#1a100a','#2a1a10','#3a2616','#4c321e'],
+  bush:['#08120a','#102012','#1a301a','#264424','#345a2e'],
+}).forEach(([k, v]) => RAMP[k] = v.map(hexc));
+const OUTLINE = hexc('#07060b');
+const img = ctx.createImageData(W, H), buf = img.data;
+function px(x, y, rgb){ x |= 0; y |= 0; if (x < 0 || y < 0 || x >= W || y >= H) return; const i = (y*W + x)*4; buf[i] = rgb[0]; buf[i+1] = rgb[1]; buf[i+2] = rgb[2]; buf[i+3] = 255; }
+function shade(ramp, l, x, y){ const r = RAMP[ramp]; const v = Math.max(0, Math.min(.999, l))*(r.length-1); const i = v|0; return r[Math.min(r.length-1, (v-i) > BAYER[(y&3)*4 + (x&3)] ? i+1 : i)]; }
+let SEED = 0;
+const hash = (x, y) => { let h = (x*374761393 + y*668265263 + SEED*1013904223) | 0; h = (h ^ (h >>> 13))*1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0)/4294967295; };
+const lerp = (a, b, t) => a + (b - a)*t;
+const clamp01 = v => Math.max(0, Math.min(1, v));
+function vnoise(x, y){ const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, sx = fx*fx*(3-2*fx), sy = fy*fy*(3-2*fy);
+  return lerp(lerp(hash(xi, yi), hash(xi+1, yi), sx), lerp(hash(xi, yi+1), hash(xi+1, yi+1), sx), sy); }
+
+/* ---------- scenes: per-pixel ramp (R), base light (B), light response (K), static lights (SL) ---------- */
+function newScene(names){ return { names, R: new Uint8Array(W*H), B: new Float32Array(W*H), K: new Float32Array(W*H), SL: new Float32Array(W*H), special: new Map(), lights: [], flames: [], spots: [] }; }
+function bakeLights(sc){
+  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++){ let s = 0; for (const l of sc.lights) s += l.i*Math.max(0, 1 - Math.hypot(x - l.x, (y - l.y)*1.15)/l.r); sc.SL[i] = s; }
+  return sc;
+}
+function buildClearing(){
+  const sc = newScene(['sky','mount','pine','cliff','dark','grass','dirt','mud','puddle','bark','bush']);
+  let seed = 11; const rnd = () => (seed = (seed*16807) % 2147483647)/2147483647;
+  const pines = (n, hmin, hmax) => Array.from({length:n}, () => ({ x: rnd()*W, h: hmin + rnd()*(hmax-hmin), w: 6 + rnd()*6 }));
+  const back = pines(34, 10, 22), front = pines(16, 18, 34);
+  const pineH = (list, x) => { let best = 0; for (const t of list){ const d = Math.abs(x - t.x)/t.w; if (d < 1) best = Math.max(best, t.h*Math.floor((1-d)*5)/5); } return best; };
+  const cliffTop = x => 28 + 6*Math.sin(x*.07) + 3*Math.sin(x*.21 + 1) + Math.abs(x - 182)*.35;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const i = y*W + x; let r = 0, l = 0, k = .5;
+    const gY = 74 + 2*Math.sin(x*.05), inCliff = x > 128 && x < 236 && y > cliffTop(x) && y < 92;
+    const mdx = (x - 182)/22, mdy = (y - 84)/20, inMouth = mdx*mdx + mdy*mdy < 1 && y < 88;
+    const teeth = inMouth && y < 70 + (x % 6 < 3 ? 6 - Math.abs(x % 6 - 1.5)*2 : 0);
+    if (inCliff && !inMouth || teeth){ r = 3; l = .55 - (y - 30)/90 + (hash(x>>1, y>>1) - .5)*.25 + (x < 150 ? .1 : 0); }
+    else if (inMouth){ r = 4; l = .15 - (y - 64)/120; }
+    else if (y >= gY){
+      const pl = lerp(96, 172, (135 - y)/51), pr = lerp(156, 192, (135 - y)/51), t = (y - gY)/(H - gY);
+      if (y > 84 && x > pl && x < pr){ r = 6; l = .35 + t*.35 + (hash(x, y) - .5)*.3; if (hash(x>>1, y>>1) > .93) l += .3; }
+      else { r = 5; l = .3 + t*.4 + (hash(x, y>>1) - .5)*.35; if (hash(x, y) > .9) l += .25; }
+      const pdx = (x - 74)/24, pdy = (y - 112)/6;
+      if (pdx*pdx + pdy*pdy < 1){ r = 7; l = .4 + (hash(x, y) - .5)*.3; const wx = (x - 74)/15, wy = (y - 112)/3.4; if (wx*wx + wy*wy < 1){ r = 8; l = .45 + (y < 111 ? .25 : 0); } }
+      const bdx = (x - 64)/16, bdy = (y - 86)/11;
+      if (bdx*bdx + bdy*bdy < 1 && y < 95){ r = 10; l = .35 + (1 - bdy)*.2 + (hash(x, y) - .5)*.35; if (hash(x*3, y*7) > .9) sc.special.set(i, hash(x, y) > .5 ? '#b02a2a' : '#5e1414'); }
+      if (r === 5 && hash(x*5, y*3) > .985) sc.special.set(i, ['#ffd04a','#d6d4e0','#b02a2a'][(hash(x, y)*3)|0]);
+    } else {
+      const fp = pineH(front, x), bp = pineH(back, x), mh = 48 + 6*Math.sin(x*.05) + 4*Math.sin(x*.13 + 1);
+      if (y > 78 - fp && fp > 0){ r = 2; l = .12 + (hash(x, y) - .5)*.1; }
+      else if (y > 70 - bp && bp > 0){ r = 2; l = .3 + (hash(x, y) - .5)*.12; }
+      else if (y > mh){ r = 1; l = .45 - (y - mh)/40; k = .1; }
+      else { r = 0; l = y/62; k = .05; if (y < 26 && hash(x, y) > .992) sc.special.set(i, '#efe6ff'); }
+    }
+    if (x < 13 + Math.sin(y*.05)*2 || x > 229 - Math.sin(y*.04)*2){ r = 9; l = .3 + (hash(x, y>>2) - .5)*.4 + (x < 6 || x > 234 ? -.15 : 0); }
+    sc.R[i] = r; sc.B[i] = clamp01(l); sc.K[i] = k;
+  }
+  sc.tufts = Array.from({length: 46}, (_, k) => ({ x: 18 + (((k*7919) % 1000)/1000*200)|0, y: 84 + (((k*104729) % 1000)/1000*48)|0, h: 2 + ((k*31) % 5) })).filter(t => !(t.x > 50 && t.x < 98 && t.y > 104 && t.y < 120));
+  sc.spots = [[70, 102], [120, 108], [170, 106]];
+  sc.outdoor = true;
+  return bakeLights(sc);
+}
+function buildHall(kind){ // 'stairs' | 'corridor'
+  const sc = newScene(['dark','stone','mortar','floor','ceil','banner','floor','riser']);
+  const F = [[0,0,1,1],[.2,.16,.8,.86],[.33,.28,.67,.74],[.41,.36,.59,.64]];
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const nx = (x+.5)/W, ny = (y+.5)/H, i = y*W + x; let seg = -1;
+    for (let s = 0; s < 3; s++){ const o = F[s], n = F[s+1]; if (nx >= o[0] && nx <= o[2] && ny >= o[1] && ny <= o[3] && !(nx > n[0] && nx < n[2] && ny > n[1] && ny < n[3])){ seg = s; break; } }
+    let mat = 0, depth = 3;
+    if (seg < 0){ if (kind === 'stairs' && ny > .5){ const r = ((ny - .5)/.14*6) % 1; mat = r < .4 ? 7 : 6; depth = 3.1 + (ny - .5)*4; } }
+    else {
+      const o = F[seg], n = F[seg+1];
+      const tl = (nx-o[0])/(n[0]-o[0]), tr = (o[2]-nx)/(o[2]-n[2]), tt = (ny-o[1])/(n[1]-o[1]), tb = (o[3]-ny)/(o[3]-n[3]);
+      const m = Math.min(tl, tr, tt, tb); depth = seg + m;
+      if (m === tb){
+        const u = (nx-.5)/(.5-.5*(1-m)) + .5;
+        if (seg === 2 && kind === 'stairs'){ const r = (m*7) % 1; mat = r < .38 ? 7 : 6; }
+        else { const rows = 4, fr = (m*rows) % 1, fc = ((u*(8-seg*2)) + (Math.floor(m*rows) % 2)*.5) % 1; mat = (fr < .12 || fc < .06) ? 2 : 3;
+          if (kind === 'corridor' && seg === 1 && m > .3 && m < .62 && Math.abs(u - .5) < .09) mat = (fr < .12 || Math.abs(u - .5) > .08) ? 2 : 1; }   // pressure plate
+      } else if (m === tt) mat = 4;
+      else {
+        const left = m === tl, t = left ? tl : tr;
+        const top = o[1] + (n[1]-o[1])*t, bot = o[3] + (n[3]-o[3])*t, v = (ny - top)/(bot - top);
+        const row = Math.floor(v*9), fr = (v*9) % 1, fc = ((m*3) + (row % 2)*.5) % 1;
+        mat = (fr < .14 || fc < .07) ? 2 : 1;
+        if (kind === 'stairs' && !left && seg === 0 && m > .25 && m < .55 && v > .12 && v < .6) mat = 5;
+        if (kind === 'corridor' && seg === 1 && Math.abs(v - .48) < .03 && (Math.floor(m*14) % 3 === 0)) sc.special.set(i, '#04030a');   // dart holes
+      }
+    }
+    sc.R[i] = mat; sc.B[i] = .04; sc.K[i] = (1 - Math.min(depth, 3.4)*.26)*(mat === 2 ? .75 : mat === 7 ? .55 : 1);
+  }
+  if (kind === 'stairs'){ sc.lights.push({ x: W*.07, y: H*.36, r: W*.2, i: .55 }); sc.flames.push({ x: (W*.07)|0, y: (H*.36)|0, s: 1, sconce: true }); }
+  sc.spots = kind === 'corridor' ? [[96, 104], [146, 100], [120, 110]] : [[120, 92], [84, 110], [156, 110]];
+  return bakeLights(sc);
+}
+function buildCave(){
+  const sc = newScene(['dark','cliff','mud','puddle']);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const i = y*W + x, dx = (x - 120)/120, dy = (y - 58)/68, ang = Math.atan2(dy, dx);
+    const ring = Math.hypot(dx, dy*1.25) + .06*Math.sin(ang*5 + 1) + .04*Math.sin(ang*11) + (vnoise(x/9, y/9) - .5)*.08;
+    let r = 1, b = .05, k = clamp01((ring - .2)*1.5);
+    if (ring < .2){ r = 0; b = .02; k = .15; }
+    else if (dy > .12 && Math.abs(dx) < dy*1.9){ r = 2; b = .05 + (hash(x, y) - .5)*.06; if (vnoise(x/14, y/4) > .66) { r = 3; b = .08; } }
+    else { b = .06 + (vnoise(x/6, y/6) - .5)*.1 + (Math.sin(ang*7 + ring*22) > .82 ? .05 : 0); k *= .8 + .4*hash(x>>1, y>>1); }
+    // stalactites
+    if (dy < -.05){ const c = x >> 2, len = hash(c, 7)*30*clamp01(-dy*2), cx = c*4 + 2; if ((y - 0) < len*(1 - Math.abs(x - cx)/2.5) && hash(c, 3) > .45){ r = 1; b = .08; k = .8; } }
+    sc.R[i] = r; sc.B[i] = clamp01(b); sc.K[i] = k;
+  }
+  for (const [mx, my] of [[40, 120], [58, 112], [186, 116], [204, 124], [160, 98]]){
+    for (let k = 0; k < 3; k++) sc.special.set((my - k)*W + mx, '#c8d8e0');
+    for (let k = -2; k <= 2; k++){ sc.special.set((my - 3)*W + mx + k, '#6fe8ff'); if (Math.abs(k) < 2) sc.special.set((my - 4)*W + mx + k, '#c8fbff'); }
+    sc.lights.push({ x: mx, y: my - 3, r: 22, i: .3 });
+  }
+  sc.spots = [[120, 52], [96, 44], [146, 46]];
+  sc.companionSpot = [178, 114];
+  return bakeLights(sc);
+}
+function buildLair(){
+  const sc = newScene(['dark','stone','mortar','floor','ceil','banner','cliff','gold','steel']);
+  const BX0 = 44, BY0 = 20, BX1 = 196, BY1 = 84;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const i = y*W + x; let r = 0, b = .04, k = 1;
+    const leftTop = x*BY0/BX0, leftBot = H - x*(H - BY1)/BX0, rx = W - x, rightTop = rx*BY0/(W - BX1), rightBot = H - rx*(H - BY1)/(W - BX1);
+    if (x >= BX0 && x <= BX1 && y >= BY0 && y <= BY1){ const row = Math.floor((y - BY0)/5), bx = (x - BX0 + (row % 2)*5) % 10; r = ((y - BY0) % 5 === 0 || bx === 0) ? 2 : 1; k = .85; }
+    else if (x < BX0 && y > leftTop && y < leftBot){ const t = x/BX0, v = (y - leftTop)/(leftBot - leftTop), row = Math.floor(v*11); r = ((v*11) % 1 < .15 || ((t*4 + (row % 2)*.5) % 1) < .08) ? 2 : 1; k = .6 + t*.3; }
+    else if (x > BX1 && y > rightTop && y < rightBot){ const t = rx/(W - BX1), v = (y - rightTop)/(rightBot - rightTop), row = Math.floor(v*11); r = ((v*11) % 1 < .15 || ((t*4 + (row % 2)*.5) % 1) < .08) ? 2 : 1; k = .6 + t*.3; }
+    else if (y < BY0 + 1 || y < Math.min(leftTop, rightTop)){ r = 4; k = .4; }
+    else { const t = (y - BY1)/(H - BY1), xl = lerp(BX0, 0, t), xr = lerp(BX1, W, t), u = (x - xl)/(xr - xl), rows = Math.floor(Math.pow(t, .7)*7);
+      r = ((Math.pow(t, .7)*7) % 1 < .14 || ((u*9 + (rows % 2)*.5) % 1) < .07) ? 2 : 3; k = .7 + t*.4;
+      if (hash(x, y) > .993) sc.special.set(i, '#bdbccc'); }
+    // throne
+    if (x >= 106 && x <= 134 && y >= 62 && y <= 88){ r = 6; b = .08 + (x < 110 || y < 64 ? .08 : 0); }
+    if (x >= 110 && x <= 130 && y >= 34 && y < 62 && !(y < 38 && (x % 5) > 2)){ r = 6; b = .07 + (x < 113 ? .06 : 0); }
+    if (x >= 110 && x <= 130 && y >= 64 && y <= 69){ r = 5; b = .1; }
+    // banners
+    for (const bx of [58, 168]) if (x >= bx && x <= bx + 14 && y >= 26 && y <= 62 + ((x - bx) % 4 === 0 ? 3 : 0)){ r = 5; b = .06; k = .9;
+      const sx = x - bx - 7, sy = y - 38; if ((sx*sx + sy*sy < 10 && !(sy === 0 && Math.abs(sx) === 1)) || (sy > 3 && sy < 6 && Math.abs(sx) < 2)) sc.special.set(i, '#d6d4e0'); }
+    // braziers
+    for (const bx of [52, 188]){ if (Math.abs(x - bx) <= 5 && y >= 80 && y <= 83){ r = 8; b = .3; } if (Math.abs(x - bx) <= 1 && y > 83 && y < 100){ r = 8; b = .15; } }
+    sc.R[i] = r; sc.B[i] = clamp01(b); sc.K[i] = k;
+  }
+  for (const bx of [52, 188]){ sc.lights.push({ x: bx, y: 74, r: 110, i: .62 }); sc.flames.push({ x: bx, y: 79, s: 2 }); }
+  sc.spots = [[120, 74], [84, 112], [168, 112]];
+  sc.typeSpot = { goblin_chief: [120, 74], orc: [84, 112] };
+  sc.chestSpot = [158, 104];
+  return bakeLights(sc);
+}
+const SCENES = {};
+const FEATURE_SLOTS = { floor: [[62, 122], [184, 120], [120, 98], [90, 112], [156, 108]], wall: [[30, 70], [210, 70]], ceil: [[92, 0], [150, 0], [60, 0]] };
+const FEATURE_KIND = { rubble:'floor', bones:'floor', barrel:'floor', crate:'floor', puddle:'floor', crystals:'floor', door:'wall', torch:'wall', chains:'ceil', roots:'ceil', web:'web' };
+function placeFeatures(sc, feats){
+  const used = { floor: 0, wall: 0, ceil: 0 }; sc.feats = [];
+  for (const f of feats){
+    const kind = FEATURE_KIND[f]; if (!kind) continue;
+    if (kind === 'web'){ sc.feats.push({ f, x: 0, y: 0 }); continue; }
+    const slot = FEATURE_SLOTS[kind][used[kind]++]; if (!slot) continue;
+    sc.feats.push({ f, x: slot[0], y: slot[1] });
+    if (f === 'torch'){ sc.lights.push({ x: slot[0], y: slot[1] - 18, r: 80, i: .55 }); sc.flames.push({ x: slot[0], y: slot[1] - 14, s: 1, sconce: true }); }
+    if (f === 'puddle') for (let y = -5; y <= 5; y++) for (let x = -20; x <= 20; x++){ if ((x/20)**2 + (y/5)**2 < 1){ const i = (slot[1] + y)*W + slot[0] + x; if (i > 0 && i < W*H){ sc.R[i] = sc.names.indexOf('floor') >= 0 ? sc.names.indexOf('floor') : 0; sc.B[i] = .02; sc.special.set(i, (x + y*3) % 7 === 0 ? '#3a4e6e' : '#141c2a'); } } }
+  }
+}
+function sceneOf(p){
+  const z = S.zones[p] || { i: 0, f: [] }, key = `${p}:${z.i}:${(z.f || []).join(',')}`;
+  if (SCENES[key]) return SCENES[key];
+  SEED = p === 'lair' || p === 'clearing' ? 0 : z.i*17 + 3;
+  const sc = p === 'clearing' ? buildClearing() : p === 'cave' ? buildCave() : p === 'lair' ? buildLair() : buildHall(p === 'stairs' && z.i > 0 ? 'stairs' : p);
+  placeFeatures(sc, z.f || []); bakeLights(sc); SEED = 0;
+  return SCENES[key] = sc;
+}
+
+/* ---------- sprites: 16-colour maps, auto outline + bevel ---------- */
+const PAL = {'0':'#0e0b14','1':'#2b2836','2':'#4f4c5e','3':'#8a879a','4':'#d6d4e0','5':'#3a2212','6':'#6e4424','7':'#b0844e','8':'#5e1414','9':'#b02a2a','a':'#ff7a1a','b':'#ffd04a','c':'#24401e','d':'#4f8a34','e':'#1e3a66','f':'#7fb8f0','g':'#3e1a5a','h':'#7a3a9a','i':'#8aa45a','j':'#d8a07a','k':'#8a4a2a','l':'#3a5a2a','m':'#e0702a','n':'#9a3a14'};
+const SPRITES = {
+  goblin: ['......dddd......','.....diiiid.....','d...diiiiiid...d','dd.diibiibiid.dd','.ddii0ii0iiidd..','..ddiiiiiiidd...','....di4i4i4d....','.....ddddd......','....56666665....','...d56777765d...','..dd56677665dd3.','..d.56666665.d3.','..d.55666655.d3.','....5566665..0..','....55.55.55....','....dd....dd....','....dd....dd....','...ddd....ddd...'],
+  goblin_chief: ['.....b.bb.b.....4.','.....bbbbbb....444','......iiii.....404','.....iiiiii.....7.','i...iibiibii...i7.','ii.iii0ii0iii.ii7.','.iiiiiiiiiiiiii.7.','...iii4i4i4ii...7.','....iiiiiiii....7.','...hhhhhhhhhh..i7.','..hhhgghhgghhhii7.','.ihhhhhbbhhhhh..7.','.i.hhhhhhhhhh...7.','...hhhhhhhhhh...7.','...hhhgghhhhh...7.','..hhhhhhhhhhhh..7.','..hhhhh..hhhhh..7.','....ii....ii......','...iii....iii.....'],
+  orc: ['.......dddddd.......','......dddddddd......','.....dd0dddd0dd.....','.....ddbddddbdd.....','.....dddddddddd.....','.....d4dddddd4d.....','......d400004d......','.......dddddd.......','...2222222222222....','..d2323333333232d...','.ddd2333333333dddd..','.ddd.333333333.ddd..','.dd..2333333332.dd33','.dd..5555bb5555.dd343','.dd..5555555555.dd343','.cc..2222222222.cc.6.','.....2222222222....6.','.....5555..5555....6.','.....dddd..dddd......','.....dddd..dddd......','.....5555..5555......','....55555..55555.....'],
+  bat: ['1..................1','11......1..1......11','111....111111....111','11111.11b11b11.11111','.111111111111111111.','..1111111111111111..','...11..111111..11...','........1111........','.........11.........'],
+  skrip: ['.....kkkkkk.....','....kkkkkkkk....','d..kiiiiiiiik..d','dd.kiibiibiik.dd','.ddii0ii0iiidd..','..ddiiiiiiidd...','....di4ii4id....','.....ddddd......','....llllllll....','...dl6666666ld..','..dd.666666.dd..','..d..667766..d..','.....666666.....','.....55..55.....','.....dd..dd.....','....ddd..ddd....'],
+  tina: ['......nnnnnn......','....nnmmmmmmnn....','...nmmmmmmmmmmn...','...nmmjjjjjjmmn...','.j.nmjjjjjjjjmn.j.','.jjnmj0jjjj0jmnjj.','..jnmjjjjjjjjmnj..','...nmjjj99jjjmn...','...nm.jjjjjj.mn...','...nn..llll..nn...','...nn.llllll.nn...','....llllllllllll..','...llllll77llllll.','..jlllll7777lllllj','..j.llll7777llll.j','..j.llll7777llll66','....llll7777lll666','....lllllllllll666','....llllllllllll..','.....llllllllll...','.....55......55...','.....55......55...','....555......555..'],
+  chest: ['..55555555..','.5666666665.','566b6666b665','555555555555','bbbbbbbbbbbb','56666bb66665','56666b766665','566666666665','bbbbbbbbbbbb','555555555555'],
+  skull: ['..3444443..','.344444443.','34444444443','34004440043','34004440043','34444044443','.344444443.','..34343434.'],
+  bones: ['.33.......33','34433333343.','.33.......33'],
+  shield: ['.....555555.....','...5566666655...','..566777777665..','.56677777777665.','.56777722777765.','5667772332777665','5677723443277765','5677723443277765','5667772332777665','.56777722777765.','.56677777777665.','..566777777665..','...5566666655...','.....555555.....'],
+  rubble: ['.....22.....','...22332....','..2333432...','.223332332..','22332223322.','233322333221','122221222211'],
+  barrel: ['.666666.','65777756','66666666','22222222','65777756','66666666','22222222','65777756','.666666.'],
+  crate: ['7777777777','7666666667','7676666767','7667667667','7666776667','7667667667','7676666767','7666666667','7777777777'],
+  door: ['..555555..','.56666665.','5666666665','5676666765','5666666665','5666666665','5676666765','5666666665','56666b6665','5666666665','5676666765','5666666665','5666666665','5555555555'],
+  chains: ['.3.','3.3','.3.','3.3','.3.','3.3','.3.','3.3','.3.','3.3','.3.','3.3','.2.','222'],
+  crystals: ['...f....','..f4f..f','..fff.f4','.f4ff.ff','.ffff.ff','fff4ffff','eeeeeeee'],
+  roots: ['6..6.6.6','6.6..6.6','.66.6.6.','..6.6..6','..6..6..','..6.....'],
+};
+const SCALE = { goblin:2, goblin_chief:2, orc:2, bat:1, skrip:2, tina:2, chest:2, skull:1, bones:1, rubble:2, barrel:2, crate:2, door:2, chains:2, crystals:2, roots:2 };
+const sprCache = new Map();
+function spriteCanvas(rows){
+  const key = rows.join('|'); if (sprCache.has(key)) return sprCache.get(key);
+  const w = Math.max(...rows.map(r => r.length)), h = rows.length;
+  const c = document.createElement('canvas'); c.width = w + 2; c.height = h + 2; const g = c.getContext('2d');
+  const at = (x, y) => (y >= 0 && y < h && x >= 0 && x < rows[y].length && PAL[rows[y][x]]) ? rows[y][x] : null;
+  for (let y = -1; y <= h; y++) for (let x = -1; x <= w; x++){
+    const ch = at(x, y);
+    if (!ch){ if (at(x+1,y) || at(x-1,y) || at(x,y+1) || at(x,y-1)){ g.fillStyle = '#07060b'; g.fillRect(x+1, y+1, 1, 1); } continue; }
+    let [r, gg, b] = hexc(PAL[ch]);
+    if (!at(x, y-1)) { r += (255-r)*.22; gg += (255-gg)*.22; b += (255-b)*.22; }
+    else if (!at(x, y+1) || !at(x+1, y)) { r *= .72; gg *= .72; b *= .72; }
+    g.fillStyle = `rgb(${r|0},${gg|0},${b|0})`; g.fillRect(x+1, y+1, 1, 1);
+  }
+  sprCache.set(key, c); return c;
+}
+const portraitCache = {};
+function portrait(id){
+  if (portraitCache[id]) return portraitCache[id];
+  const rows = SPRITES[id].slice(0, 9), c0 = spriteCanvas(rows);
+  const c = document.createElement('canvas'); c.width = 20; c.height = 20; const g = c.getContext('2d');
+  g.fillStyle = '#1d1834'; g.fillRect(0, 0, 20, 20); g.drawImage(c0, ((20 - c0.width)/2)|0, 20 - c0.height);
+  return portraitCache[id] = c.toDataURL();
+}
+
+/* ---------- items in the right hand ---------- */
+const ITEM_ART = [
+  [/трав|сено|пучок|стебел|осок/, ['..d...d..d..','..d..dd.dd..','.dd..d..d..d','.d.dd.dd.dd.','dd.d..d..d.d','.dcd.cd.dcd.','..cdcdcdcd..','...ccdcdc...','....5665....','...566665...']],
+  [/грязь|грязи|глин|ком /, ['....5555....','..55666655..','.5666776665.','566676666665','566666667665','.5566666655.','...555555...','..5....5....']],
+  [/палк|ветк|сук|хворост|прут/, ['..........6.','.........67.','........675.','.......675..','......675...','....67675...','...675.5....','..675.......','.675........','675.........','75..........']],
+  [/цвет|ромаш|одуван|колокольч/, ['...9..9....','..999999...','.99bbb99...','..9bbb9....','..99999....','....d......','...dd.dd...','....d.d....','....dd.....','....d......']],
+  [/шишк/, ['....55....','...5675...','..567765..','..576675..','.56766765.','.57677675.','..576765..','..567765..','...5765...','....55....']],
+  [/ягод|черник|малин|брусник|земляник/, ['....d.....','...dcd....','..9.d.9...','.98989898.','.98e8e898.','..989898..','...8989...','....88....']],
+  [/лист/, ['........dd','......ddcd','....dddcd.','..ddddcdd.','.dddcddd..','ddcdddd...','dcddd.....','5dd.......','5.........']],
+  [/мох|лишай/, ['..dcd.dc..','.dcdcdcdc.','dcdcdcdcdc','cdcdcdcdcd','dcdcdcdcdc','.c5c5c5c5.']],
+  [/червь|червяк|личинк/, ['......99..','.....9889.','..99.98...','.9889.9...','.9..98....']],
+  [/вод|роса|лужи/, ['....f.....','...fff....','..ff4ff...','.fffffff..','.ffeffff..','..fffff...']],
+  [/земл|песок|почв|пыль/, ['...7777...','..776677..','.76767667.','7766676677','.77777777.']],
+  [/камен|булыж|галь|огнив|кремен/, ['....1111....','..11222211..','.1223332221.','.1233443321.','122333333221','122233332221','112222222211','.1112222111.','...111111...']],
+  [/кост|ребр|берцов/, ['.33......33.','3443....3443','344433334443','.3444444443.','.3444444443.','344433334443','3443....3443','.33......33.']],
+  [/ключ/, ['..bbb.......','.b777b......','.b7..7bbbbbb','.b7..7777b7b','.b777b...b.b','..bbb.......']],
+  [/зель|склян|флакон|бутыл|эликсир/, ['....55....','....66....','...3443...','..39ff93..','.3999b993.','.39999993.','.38999983.','..388883..','...3333...']],
+  [/монет|золот/, ['...bbbb...','..b7bbbb..','.b7bb77bb.','.b7b7bb7b.','.bbb7bb7b.','.bbbb77bb.','..bbbbbb..','...7777...']],
+  [/кинжал|нож/, ['..........4','.........43','........43.','.......43..','......43...','..b..43....','...b43.....','...6b......','..6..b.....','.6.........','5..........']],
+  [/свеч/, ['....b.....','...bab....','...aba....','....1.....','...444....','...443....','...443....','...443....','..34443...','..22222...']],
+  [/череп/, SPRITES.skull],
+  [/гриб/, ['...9999....','.99b99b99..','9999999999.','99b999b999.','.99999999..','....44.....','....43.....','....43.....','...4443....']],
+  [/хлеб|краюх|лепёш|лепеш/, ['..777777...','.76666667..','7666776667.','7676666767.','76666666667','.666666666.','..5555555..']],
+  [/верёв|верев|канат/, ['..666666..','.67777776.','6766666676','6767777676','6767667676','6766776676','.67777776.','..666666..']],
+  [/щит/, ['.....555555.....','...5566666655...','..566777777665..','.56677777777665.','.56777722777765.','5667772332777665','5677723443277765','5677723443277765','5667772332777665','.56777722777765.','.56677777777665.','..566777777665..','...5566666655...','.....555555.....']],
+  [/корон/, ['.b..b..b..b.','.bb.bb.bb.bb','.bbbbbbbbbbb','.b9bbfbb9bb.','.bbbbbbbbbb.','.7777777777.']],
+];
+const SACK = ['....66....','...6556...','..666666..','.67777776.','6777777776','6777777776','.67777776.','..666666..'];
+function heldArt(name){
+  const low = name.toLowerCase(), lib = ITEM_ART.find(([re]) => re.test(low));
+  return lib ? lib[1] : (S.itemArt && S.itemArt[name]) || SACK;
+}
+
+/* ---------- ghost: procedural hooded wraith ---------- */
+function drawGhost(e, fi, cx0){
+  const ph = fi*2*Math.PI/3, Hh = 62, top = 26 + Math.round(Math.sin(ph)*1.5);
+  const hurt = e.state === 'hurt' && fi !== 1;
+  for (let y = top; y < top + Hh; y++){
+    const v = (y - top)/Hh, cx = cx0 + 2.5*Math.sin(ph + v*3)*v;
+    let hw;
+    if (v < .3){ const dy = (v - .19)/.19; hw = dy < 1 ? 12.5*Math.sqrt(Math.max(0, 1 - dy*dy)) : 0; if (v > .19) hw = Math.max(hw, 11); }
+    else hw = 10 + 15*Math.min(1, (v - .3)/.6) + 1.4*Math.sin(v*11 + ph);
+    for (let x = Math.floor(cx - hw - 1); x <= Math.ceil(cx + hw + 1); x++){
+      const d = (x + .5 - cx)/Math.max(1, hw);
+      if (Math.abs(d) > 1) continue;
+      if (v > .84 && (v - .84) > .16*(.5 + .5*Math.sin((x - cx0)*.75 + ph*2))) continue;
+      if (v > .58 && BAYER[(y&3)*4 + (x&3)] < (v - .58)*1.5) continue;
+      const fy = top + Hh*.21, fdx = (x + .5 - cx)/6.5, fdy = (y + .5 - fy)/7.5;
+      if (v < .32 && fdx*fdx + fdy*fdy < 1){
+        const eye = Math.abs(y - (fy|0)) < 1 && (Math.abs(x - (cx - 3)) < 1.5 || Math.abs(x - (cx + 3)) < 1.5);
+        px(x, y, eye ? hexc(hurt ? '#ffffff' : '#ffe066') : RAMP.ghost[0]); continue;
+      }
+      let l = .78 - v*.3 - Math.max(0, d)*.3 + Math.max(0, -d)*.12 + .1*Math.sin((x - cx)*.9 + v*5 + ph);
+      if (Math.abs(d) > .86) l -= .18;
+      px(x, y, hurt ? RAMP.ghost[6] : shade('ghost', l, x, y));
+    }
+  }
+}
+
+/* ---------- sword ---------- */
+const LEFT_X = -4, HAND_Y = H - 116 + 14, RIGHT_X = W - 60;
+function drawSword(lightAt){
+  const bx = 211, by = HAND_Y + 72, tx = 158, ty = 16, L = Math.hypot(tx - bx, ty - by), ux = (tx - bx)/L, uy = (ty - by)/L;
+  for (let y = Math.min(by, ty) - 12; y <= Math.max(by, ty) + 14; y++) for (let x = Math.min(bx, tx) - 12; x <= Math.max(bx, tx) + 12; x++){
+    const rx = x + .5 - bx, ry = y + .5 - by, a = rx*ux + ry*uy, d = -rx*uy + ry*ux, lit = .55 + .45*lightAt(x, y);
+    const wB = 4.3*Math.min(1, (L - a)/(L*.14));
+    if (a > 1.5 && a < L && Math.abs(d) < wB + 1){ if (Math.abs(d) >= wB){ px(x, y, OUTLINE); continue; } px(x, y, shade('steel', (Math.abs(d) < .6 ? .95 : d < 0 ? .78 : .42)*lit, x, y)); continue; }
+    if (a >= -1.5 && a <= 1.5 && Math.abs(d) < 10){ px(x, y, Math.abs(d) > 9 || Math.abs(a) > 1 ? OUTLINE : shade('gold', (a < 0 ? .85 : .5)*lit, x, y)); continue; }
+    if (a < -1.5 && a > -14 && Math.abs(d) < 2.2) px(x, y, Math.abs(d) > 1.5 ? OUTLINE : shade('wood', .55*lit, x, y));
+  }
+}
+
+/* ---------- particles ---------- */
+let parts = [], shakeUntil = 0, shakeAmp = 0;
+const EFFECTS = ['fire','magic','strike','blood','smell','shout','splash','spit','sparkle','dust','heal'];
+function addEffect(type){
+  if (!EFFECTS.includes(type)) return;
+  const R = Math.random, now = performance.now(), add = (n, f) => { for (let i = 0; i < n; i++) parts.push(Object.assign({ life: 0 }, f(i))); };
+  switch (type){
+    case 'fire': add(30, () => ({ x: 30 + R()*14, y: 50 + R()*10, vx: (R()-.5)*.4, vy: -.6 - R()*.8, max: 900 + R()*500, col: RAMP.flame[3 + (R()*4|0)] })); break;
+    case 'magic': add(36, i => { const a = i/36*Math.PI*2; return { x: 120 + Math.cos(a)*22, y: 55 + Math.sin(a)*22, vx: -Math.sin(a)*.8, vy: Math.cos(a)*.8 - .1, max: 1000, col: R() < .5 ? RAMP.ghost[5] : RAMP.ghost[6] }; }); break;
+    case 'heal': add(28, () => ({ x: 70 + R()*100, y: 120 + R()*10, vx: 0, vy: -.5 - R()*.6, max: 1200, col: hexc(R() < .5 ? '#7fbf5a' : '#d6f0a0') })); break;
+    case 'strike': add(26, () => { const a = R()*Math.PI*2, s = .8 + R()*1.8; return { x: 120, y: 70, vx: Math.cos(a)*s, vy: Math.sin(a)*s, max: 450 + R()*300, col: R() < .5 ? hexc('#fff6c8') : hexc('#ffd04a') }; }); shakeUntil = now + 250; shakeAmp = 3; break;
+    case 'blood': add(16, () => ({ x: 115 + R()*10, y: 66, vx: (R()-.5)*1.2, vy: -R()*1.2, g: .08, max: 900, col: hexc(R() < .5 ? '#86202a' : '#5e1414') })); shakeUntil = now + 200; shakeAmp = 2; break;
+    case 'smell': add(22, () => ({ x: 90 + R()*60, y: 128 + R()*6, vx: (R()-.5)*.25, vy: -.25 - R()*.3, max: 1600, col: hexc(R() < .5 ? '#4f8a34' : '#24401e'), big: 1 })); break;
+    case 'shout': add(30, () => ({ x: R()*W, y: R()*10, vx: 0, vy: .5 + R()*.6, max: 1200, col: hexc('#6b5a86') })); shakeUntil = now + 400; shakeAmp = 2; break;
+    case 'splash': add(18, () => ({ x: 110 + R()*20, y: 120, vx: (R()-.5)*1.4, vy: -1 - R()*1.5, g: .09, max: 800, col: hexc('#7fb8f0') })); break;
+    case 'spit': add(6, i => ({ x: 120 + i, y: 132, vx: .1, vy: -1.6 - i*.05, g: .05, max: 900, col: hexc('#d6f0ff') })); break;
+    case 'sparkle': add(16, () => ({ x: 30 + R()*180, y: 20 + R()*90, vx: 0, vy: 0, max: 800 + R()*600, col: hexc('#ffd04a'), blink: 1 })); break;
+    case 'dust': add(40, () => ({ x: R()*W, y: R()*20, vx: (R()-.5)*.2, vy: .4 + R()*.5, max: 1500, col: hexc('#4d3f69') })); break;
+  }
+}
+function drawParticles(dt){
+  parts = parts.filter(p => (p.life += dt) < p.max);
+  for (const p of parts){
+    const k = dt/16; p.vy += (p.g || 0)*k; p.x += p.vx*k; p.y += p.vy*k;
+    if (p.blink && (p.life/120|0) % 2) continue;
+    if (p.life/p.max > .7 && BAYER[((p.y|0)&3)*4 + ((p.x|0)&3)] < (p.life/p.max - .7)*3) continue;
+    px(p.x, p.y, p.col); if (p.big){ px(p.x+1, p.y, p.col); px(p.x, p.y+1, p.col); }
+  }
+}
+
+/* ---------- dice on screen (pixel d20) ---------- */
+const DIGITS = ['111101101101111','010110010010111','111001111100111','111001111001111','101101111001001','111100111001111','111100111101111','111001010010010','111101111101111','111101111001111'];
+function drawNumber(n, x, y, col){ String(n).split('').forEach((ch, k) => { const d = DIGITS[+ch]; for (let j = 0; j < 15; j++) if (d[j] === '1') px(x + k*4 + j % 3, y + (j/3|0), col); }); }
+function drawD20(cx, cy, n, state){ // state: 'roll' | 'keep-ok' | 'keep-fail' | 'drop'
+  const col = state === 'drop' ? hexc('#4f4c5e') : state === 'keep-ok' ? hexc('#7fbf5a') : state === 'keep-fail' ? hexc('#d4483a') : hexc('#ecd06a');
+  const fill = state === 'drop' ? hexc('#141126') : hexc('#241c3e');
+  for (let y = -8; y <= 8; y++){ const hw = 8 - Math.max(0, Math.abs(y) - 3)*.9; for (let x = -Math.round(hw); x <= Math.round(hw); x++){ const edge = Math.abs(x) >= Math.round(hw) - .5 || Math.abs(y) === 8; px(cx + x, cy + y, edge ? col : fill); } }
+  const s = String(n), w = s.length*4 - 1; drawNumber(n, cx - (w >> 1), cy - 2, state === 'drop' ? hexc('#8a879a') : hexc('#ffffff'));
+}
+let diceShow = null;
+function drawDice(t){
+  if (!diceShow) return;
+  const age = t - diceShow.t0; if (age > 2600){ diceShow = null; return; }
+  const rolling = age < 600, r = diceShow;
+  r.dice.forEach((v, k) => {
+    const x = W - 14 - (r.dice.length - 1 - k)*20, y = 13;
+    if (rolling) drawD20(x, y, 1 + (Math.random()*20|0), 'roll');
+    else drawD20(x, y, v, k === r.keep ? (r.success ? 'keep-ok' : 'keep-fail') : 'drop');
+  });
+}
+
+/* ---------- condition overlays ---------- */
+const overlayCache = {};
+function condOverlay(kind){
+  if (overlayCache[kind]) return overlayCache[kind];
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const col = { poisoned:'#3f7a2a', frightened:'#5e1418', charmed:'#b0407a', restrained:'#4a2a6a', blinded:'#000000' }[kind];
+  g.fillStyle = col;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const d = Math.min(x, y, W - 1 - x, H - 1 - y), bay = BAYER[(y&3)*4 + (x&3)];
+    const cover = kind === 'blinded' ? .9 - .25*clamp01(1 - Math.hypot(x - W/2, y - H/2)/60) : clamp01(1 - d/16)*.75;
+    if (bay < cover) g.fillRect(x, y, 1, 1);
+  }
+  return overlayCache[kind] = c;
+}
+
+/* ---------- frame ---------- */
+let lastT = 0;
+function render(t, dt){
+  const fi = Math.floor(t/333) % 3, sc = sceneOf(S.place), flick = [1, .92, 1.06][fi];
+  const lit = torchLit(), tx = LEFT_X + 34, ty = HAND_Y + 30;
+  const torchAt = (x, y) => lit ? Math.max(0, 1 - Math.hypot(x - tx, (y - ty)*1.25)/(W*.78))**1.25*[1, .9, 1.06][fi] : 0;
+  const lightAt = (x, y) => { x |= 0; y |= 0; const i = Math.max(0, Math.min(W*H - 1, y*W + x)); return Math.min(1.2, sc.B[i] + sc.K[i]*(torchAt(x, y) + sc.SL[i]*flick)) + (sc.outdoor ? .55 : 0); };
+  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++){
+    const sp = sc.special.get(i); if (sp){ px(x, y, hexc(sp)); continue; }
+    px(x, y, shade(sc.names[sc.R[i]], sc.B[i] + sc.K[i]*(torchAt(x, y)*(sc.outdoor ? .5 : 1.05) + sc.SL[i]*flick), x, y));
+  }
+  if (sc.tufts) for (const tf of sc.tufts) for (let k = 0; k < tf.h; k++){ px(tf.x, tf.y - k, shade('grass', .55 + k*.06 + torchAt(tf.x, tf.y)*.4, tf.x, tf.y - k)); }
+  const FL = [['..2..','.232.','.343.','23432','34543','.454.','.353.','..2..'],['.2...','.32..','.343.','23442','34543','.454.','.353.','..2..'],['...2.','..23.','.343.','24432','34543','.454.','.353.','..2..']];
+  for (const f of sc.flames){
+    if (f.sconce) for (let k = 0; k < 6; k++) px(f.x, f.y + 4 + k, RAMP.steel[2]);
+    FL[fi].forEach((row, j) => { for (let k = 0; k < row.length; k++) if (row[k] !== '.') for (let a = 0; a < f.s; a++) for (let b = 0; b < f.s; b++) px(f.x - 2*f.s + k*f.s + b, f.y - 8*f.s + j*f.s + a, RAMP.flame[+row[k]]); });
+  }
+  const pl = here(), vis = pl.enemies.filter(e => !e.hidden && e.state !== 'dead' && e.state !== 'fled');
+  vis.filter(e => e.type === 'ghost' && e.state !== 'pacified').forEach(e => drawGhost(e, fi, 120));
+  for (const ft of sc.feats || []) if (ft.f === 'web'){ const c = RAMP.steel[4]; for (let k = 0; k < 5; k++){ const a = k*Math.PI/10; for (let r = 0; r < 34; r++) if (BAYER[(r&3)*4 + (k&3)] < .7) px(Math.cos(a)*r, Math.sin(a)*r, c); } for (const r of [10, 19, 28]) for (let a = 0; a < Math.PI/2; a += .04) if (BAYER[((a*40)|0)&15] < .6) px(Math.cos(a)*r, Math.sin(a)*r, RAMP.steel[3]); }
+  const holding = S.held, sword = holding && /меч/i.test(holding) && hasItem(/меч/i);
+  if (sword) drawSword((x, y) => Math.min(1, torchAt(x, y)*1.6 + sc.SL[(y|0)*W + (x|0)]*1.2 + (sc.outdoor ? .5 : 0)));
+  drawParticles(dt);
+  ctx.putImageData(img, 0, 0);
+  // sprites (characters, chest, legacy bones) — lit by the scene light at their feet
+  const drawSpr = (rows, x, y, s, extra = {}) => {
+    const c = spriteCanvas(rows), b = clamp01(.12 + lightAt(x, y - 4)*1.25);
+    ctx.filter = extra.flash ? 'brightness(2.6)' : `brightness(${b.toFixed(2)})`;
+    ctx.globalAlpha = extra.alpha ?? 1;
+    ctx.drawImage(c, Math.round(x - c.width*s/2), Math.round(y - c.height*s), c.width*s, c.height*s);
+    ctx.filter = 'none'; ctx.globalAlpha = 1;
+  };
+  for (const ft of sc.feats || []) if (SPRITES[ft.f]){ const s = SCALE[ft.f] || 2, c = spriteCanvas(SPRITES[ft.f]);
+    if (FEATURE_KIND[ft.f] === 'ceil') drawSpr(SPRITES[ft.f], ft.x, c.height*s, s); else if (ft.f === 'bones'){ drawSpr(SPRITES.skull, ft.x - 8, ft.y, 1); drawSpr(SPRITES.bones, ft.x + 6, ft.y + 2, 1); } else drawSpr(SPRITES[ft.f], ft.x, ft.y, s); }
+  if (S.place === 'lair' && !S.chestTaken) drawSpr(SPRITES.chest, sc.chestSpot[0], sc.chestSpot[1], 2);
+  const legacy = LEGACY.find(l => l.place === S.place);
+  if (legacy && !S.legacyFound){ drawSpr(SPRITES.skull, 92, 126, 1); drawSpr(SPRITES.bones, 104, 128, 1); }
+  let slot = 0;
+  vis.filter(e => e.type !== 'ghost' && SPRITES[e.type]).forEach((e, k) => {
+    const spot = (sc.typeSpot && sc.typeSpot[e.type]) || sc.spots[slot++ % sc.spots.length];
+    if (e.type === 'bat'){ for (let b = 0; b < Math.max(1, Math.min(3, e.hp)); b++) drawSpr(SPRITES.bat, spot[0] - 24 + b*24, spot[1] + (fi + b) % 2*2 - b % 2*6, 1); return; }
+    const bob = e.state === 'asleep' ? 0 : [0, 1, 0][fi];
+    drawSpr(SPRITES[e.type], spot[0], spot[1] + bob, SCALE[e.type], { flash: e.state === 'hurt' && fi !== 1, alpha: e.state === 'asleep' ? .85 : 1 });
+    if (e.state === 'asleep' && fi !== 2){ ctx.fillStyle = '#b39cff'; const zx = spot[0] + 10 + fi*3, zy = spot[1] - 40 - fi*4; ctx.fillRect(zx, zy, 3, 1); ctx.fillRect(zx + 1, zy + 1, 1, 1); ctx.fillRect(zx, zy + 2, 3, 1); }
+  });
+  for (const [id, c] of Object.entries(COMPANIONS)){
+    const st = S.party[id]; if (st.joined || !st.alive || !st.visible || c.place !== S.place) continue;
+    const spot = sc.companionSpot || [182, 112];
+    drawSpr(SPRITES[id], spot[0], spot[1] + [0, 1, 0][fi], 2);
+  }
+  const ready = im => im.complete && im.naturalWidth;
+  const inHand = (item, x, big) => { const c = spriteCanvas(heldArt(item)), s = 2; ctx.drawImage(c, x + 34 - c.width*s/2, HAND_Y + (big ? 100 : 72) - c.height*s, c.width*s, c.height*s); };
+  // right hand: shown only while it holds something
+  if (holding && S.inventory.includes(holding)){
+    if (!sword && !/щит/i.test(holding)) inHand(holding, RIGHT_X);
+    if (ready(HAND.fist)) ctx.drawImage(HAND.fist, RIGHT_X, HAND_Y);
+    if (/щит/i.test(holding)) inHand(holding, RIGHT_X, true);
+  }
+  // left hand: shown only while it holds something (torch, shield, any item)
+  const left = S.left && S.inventory.includes(S.left) ? S.left : null;
+  if (left){
+    if (/факел/i.test(left)){ const im = lit ? HAND.lit[fi] : HAND.unlit; if (ready(im)) ctx.drawImage(im, LEFT_X, HAND_Y); }
+    else { if (!/щит/i.test(left)) inHand(left, LEFT_X); if (ready(HAND.fistL)) ctx.drawImage(HAND.fistL, LEFT_X, HAND_Y); if (/щит/i.test(left)) inHand(left, LEFT_X, true); }
+  }
+  for (const c of S.conditions) if (['poisoned','frightened','charmed','restrained','blinded'].includes(c.id)) ctx.drawImage(condOverlay(c.id), 0, 0);
+  // camera: shake, fear tremble, lying on the ground, exhaustion
+  let tr = '';
+  const fear = hasCond('frightened');
+  if (t < shakeUntil || fear){ const a = t < shakeUntil ? shakeAmp : 1; tr += `translate(${((Math.random()-.5)*a*2).toFixed(1)}px,${((Math.random()-.5)*a*2).toFixed(1)}px) `; }
+  if (hasCond('prone')) tr += 'rotate(-7deg) scale(1.14) translateY(4%)';
+  cv.style.transform = tr;
+  cv.style.filter = S.exhaustion ? `saturate(${1 - S.exhaustion*.16}) brightness(${1 - S.exhaustion*.06})` : '';
+}
+function frame(t){ requestAnimationFrame(frame); if (t - lastT < 40) return; const dt = Math.min(100, t - lastT); lastT = t; render(t, dt); }
+
+/* =====================  SOUND: everything synthesised with WebAudio, no files  ===================== */
+const AU = { ctx: null, on: false, master: null, noise: null, bed: [], bedPlace: null, timer: null, nextDrum: 0 };
+function audioInit(){
+  if (AU.ctx) return true;
+  const A = window.AudioContext || window.webkitAudioContext; if (!A) return false;
+  try {
+    AU.ctx = new A(); AU.master = AU.ctx.createGain(); AU.master.gain.value = .55; AU.master.connect(AU.ctx.destination);
+    const len = AU.ctx.sampleRate*2, b = AU.ctx.createBuffer(1, len, AU.ctx.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random()*2 - 1;
+    AU.noise = b; return true;
+  } catch(e){ AU.ctx = null; return false; }
+}
+function tone({ f = 440, type = 'sine', dur = .2, vol = .2, attack = .004, to = null, when = 0 }){
+  if (!AU.on) return; const c = AU.ctx, t = c.currentTime + when, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g).connect(AU.master); o.start(t); o.stop(t + dur + .05);
+}
+function noise({ dur = .1, vol = .2, type = 'bandpass', f = 1000, q = 1, when = 0, attack = .002 }){
+  if (!AU.on) return; const c = AU.ctx, t = c.currentTime + when, s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+  s.buffer = AU.noise; s.loop = true; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  s.connect(fl).connect(g).connect(AU.master); s.start(t, Math.random()); s.stop(t + dur + .05);
+}
+const SFX = {
+  dice(){ for (let i = 0; i < 6; i++) noise({ dur: .03, vol: .25, f: 2500 + Math.random()*1500, q: 4, when: i*.07 + Math.random()*.03 }); },
+  hit(){ noise({ dur: .18, vol: .45, type: 'lowpass', f: 900 }); tone({ f: 90, to: 40, dur: .25, vol: .5 }); },
+  magic(){ tone({ f: 300, to: 1400, dur: .7, vol: .12, type: 'triangle' }); tone({ f: 900, to: 2400, dur: .6, vol: .05, when: .1 }); },
+  heal(){ [523, 659, 784].forEach((f, i) => tone({ f, dur: .3, vol: .12, type: 'triangle', when: i*.09 })); },
+  pickup(){ tone({ f: 660, dur: .08, vol: .12, type: 'square' }); tone({ f: 990, dur: .1, vol: .1, type: 'square', when: .07 }); },
+  step(){ tone({ f: 70, to: 45, dur: .12, vol: .3 }); tone({ f: 65, to: 40, dur: .12, vol: .25, when: .28 }); },
+  hurt(){ tone({ f: 320, to: 110, dur: .3, vol: .18, type: 'square' }); },
+  torch(){ noise({ dur: .5, vol: .25, type: 'bandpass', f: 600, q: .7, attack: .05 }); },
+  shout(){ noise({ dur: .4, vol: .2, type: 'bandpass', f: 500, q: 2 }); },
+  win(){ [392, 494, 587, 784, 988].forEach((f, i) => tone({ f, dur: .35, vol: .14, type: 'square', when: i*.12 })); },
+  death(){ tone({ f: 220, to: 55, dur: 1.6, vol: .2, type: 'sawtooth' }); },
+  talk(){ for (let i = 0; i < 4; i++) tone({ f: 380 + Math.random()*160, dur: .05, vol: .06, type: 'square', when: i*.06 }); },
+};
+const FX_SOUND = { fire: 'torch', magic: 'magic', strike: 'hit', blood: 'hurt', shout: 'shout', heal: 'heal', sparkle: 'pickup', dust: 'step' };
+function bedFor(place){
+  // continuous layer per place: wind outside, low drone inside
+  AU.bed.forEach(n => { try { n.stop(); } catch(e){} }); AU.bed = []; AU.bedPlace = place;
+  if (!AU.on) return;
+  const c = AU.ctx;
+  const drone = (f, v) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; g.gain.value = v; o.connect(g).connect(AU.master); o.start(); AU.bed.push(o); };
+  if (place === 'clearing'){
+    const s = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+    s.buffer = AU.noise; s.loop = true; fl.type = 'bandpass'; fl.frequency.value = 450; fl.Q.value = .6; g.gain.value = .05;
+    lfo.frequency.value = .12; lg.gain.value = 250; lfo.connect(lg).connect(fl.frequency);
+    s.connect(fl).connect(g).connect(AU.master); s.start(); lfo.start(); AU.bed.push(s, lfo);
+  } else {
+    drone({ cave: 55, corridor: 49, stairs: 46, lair: 41 }[place] || 50, .035);
+    drone(({ cave: 55, corridor: 49, stairs: 46, lair: 41 }[place] || 50)*1.5, .012);
+  }
+}
+function ambientTick(){
+  if (!AU.on) return;
+  if (AU.bedPlace !== S.place) bedFor(S.place);
+  const R = Math.random(), p = S.place;
+  if (p === 'clearing' && R < .22) for (let i = 0; i < 3; i++) tone({ f: 4300 + Math.random()*300, dur: .03, vol: .03, when: i*.05 });
+  if (p === 'cave' && R < .05){ const f = 900 + Math.random()*700; tone({ f, to: f*.6, dur: .18, vol: .08 }); tone({ f, to: f*.6, dur: .18, vol: .03, when: .22 }); }
+  if (p === 'corridor' && R < .012) noise({ dur: .25, vol: .08, type: 'lowpass', f: 300 });
+  if (p === 'stairs' && R < .035 && here().enemies.some(e => e.type === 'ghost' && e.state !== 'dead' && e.state !== 'fled')) noise({ dur: 1.4, vol: .05, type: 'bandpass', f: 1500 + Math.random()*600, q: 6, attack: .5 });
+  if (p === 'lair'){ const now = AU.ctx.currentTime; if (now > AU.nextDrum){ tone({ f: 62, to: 40, dur: .3, vol: .3 }); if (Math.random() < .3) tone({ f: 62, to: 40, dur: .3, vol: .22, when: .18 }); AU.nextDrum = now + .9; } if (R < .25) noise({ dur: .02, vol: .05, f: 3000, q: 3 }); }
+  if (torchLit() && R < .18) noise({ dur: .015 + Math.random()*.02, vol: .05, f: 2500 + Math.random()*2000, q: 2 });
+}
+function setSound(on){
+  if (on && !audioInit()) return;
+  AU.on = on; if (AU.ctx && on) AU.ctx.resume().catch(() => {});
+  if (on){ bedFor(S.place); if (!AU.timer) AU.timer = setInterval(ambientTick, 100); }
+  else { AU.bed.forEach(n => { try { n.stop(); } catch(e){} }); AU.bed = []; AU.bedPlace = null; }
+  $('sound').setAttribute('aria-pressed', String(on)); $('sound').textContent = 'Звук: ' + (on ? 'вкл' : 'выкл');
+  try { localStorage.setItem('grey-fang-sound', on ? '1' : '0'); } catch(e){}
+}
+
+/* ---------- music: a small chiptune sequencer, one theme per place ---------- */
+const SONGS = {
+  // root (midi), scale, chord roots per bar (scale degrees), tempo, mood
+  clearing: { root: 57, scale: [0,2,3,5,7,8,10], prog: [0,5,3,4, 0,5,6,4], bpm: 76, lead: .05, arp: .025, bass: .07 },
+  cave:     { root: 50, scale: [0,2,3,5,7,8,10], prog: [0,0,5,4, 0,3,5,4], bpm: 58, lead: .035, arp: .03, bass: .06, sparse: true },
+  corridor: { root: 52, scale: [0,1,3,5,7,8,10], prog: [0,1,0,6, 0,1,3,1], bpm: 68, lead: .04, arp: .02, bass: .07 },
+  stairs:   { root: 48, scale: [0,1,3,4,6,7,9,10], prog: [0,0,1,0, 3,2,1,0], bpm: 50, lead: .035, arp: .03, bass: .05, sparse: true },
+  lair:     { root: 45, scale: [0,2,3,5,7,8,10], prog: [0,0,5,5, 3,3,4,4], bpm: 100, lead: .05, arp: .02, bass: .09, drums: true },
+};
+const MU = { on: false, timer: null, next: 0, step: 0, place: null, out: null };
+const mtof = m => 440*Math.pow(2, (m - 69)/12);
+function note(m, t, dur, vol, type, cutoff){
+  const c = AU.ctx, o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+  o.type = type; o.frequency.value = mtof(m); f.type = 'lowpass'; f.frequency.value = cutoff || 2400;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(f).connect(g).connect(MU.out); o.start(t); o.stop(t + dur + .05);
+}
+function musicTick(){
+  if (!MU.on || !AU.ctx) return;
+  if (MU.place !== S.place){ MU.place = S.place; MU.step = 0; MU.next = AU.ctx.currentTime + .1; }
+  const song = SONGS[S.place] || SONGS.clearing, eighth = 60/song.bpm/2, sc = song.scale, deg = i => song.root + sc[((i % sc.length) + sc.length) % sc.length] + 12*Math.floor(i/sc.length);
+  while (MU.next < AU.ctx.currentTime + .35){
+    const t = MU.next, step = MU.step, bar = Math.floor(step/8) % song.prog.length, pos = step % 8, chord = song.prog[bar];
+    if (pos === 0 || pos === 4) note(deg(chord) - 12, t, eighth*3.6, song.bass, 'triangle', 900);
+    if (!song.sparse || pos % 2 === 0) note(deg(chord + [0, 2, 4, 2][pos % 4]) + 12, t, eighth*.9, song.arp, 'square', 1600);
+    const r = hash(step % (song.prog.length*8), 77);                      // the same melody every loop
+    if ((pos === 0 || pos === 3 || pos === 6) && r > (song.sparse ? .55 : .3)) note(deg(chord + [0, 2, 4, 6, 7][(r*5)|0]) + 12, t, eighth*(pos === 6 ? 2 : 2.8), song.lead, 'sawtooth', 1300);
+    if (song.drums){ if (pos % 4 === 0){ const o = AU.ctx.createOscillator(), g = AU.ctx.createGain(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(40, t + .15); g.gain.setValueAtTime(.18, t); g.gain.exponentialRampToValueAtTime(.0001, t + .2); o.connect(g).connect(MU.out); o.start(t); o.stop(t + .25); }
+      if (pos % 4 === 2){ const s = AU.ctx.createBufferSource(), f = AU.ctx.createBiquadFilter(), g = AU.ctx.createGain(); s.buffer = AU.noise; f.type = 'highpass'; f.frequency.value = 5000; g.gain.setValueAtTime(.04, t); g.gain.exponentialRampToValueAtTime(.0001, t + .05); s.connect(f).connect(g).connect(MU.out); s.start(t, Math.random()); s.stop(t + .06); } }
+    MU.step++; MU.next += eighth;
+  }
+}
+function setMusic(on){
+  if (on && !audioInit()) return;
+  MU.on = on;
+  if (on){ AU.ctx.resume().catch(() => {}); if (!MU.out){ MU.out = AU.ctx.createGain(); MU.out.gain.value = .8; MU.out.connect(AU.ctx.destination); } MU.place = null; if (!MU.timer) MU.timer = setInterval(musicTick, 90); }
+  $('music').setAttribute('aria-pressed', String(on)); $('music').textContent = 'Музыка: ' + (on ? 'вкл' : 'выкл');
+  try { localStorage.setItem('grey-fang-music', on ? '1' : '0'); } catch(e){}
+}
+
+/* =====================  GAME MASTER (Claude)  ===================== */
+let sample = null, busy = false;
+const RULES = `Ты — мастер настольной игры по правилам D&D 5e в текстовой игре «Пещера Серого Зуба» (тёмное фэнтези). Игрок — воин 1 уровня без магии. Он пишет действия свободным текстом; ты решаешь, что происходит, и отвечаешь ТОЛЬКО одним JSON-объектом.
+
+ДУХ ИГРЫ
+- Реагируй на любое действие, даже шуточное: у всего есть последствия. Мир живой: существа заняты своими делами, а не стоят и ждут игрока.
+- Награждай выдумку: умное нестандартное решение — преимущество на проверку и, изредка, Вдохновение ("inspiration":"grant").
+- "remember" — только по-настоящему важные факты, которые изменят будущее (пощадил врага, сломал механизм, обманул кого-то). Не чаще одного факта за несколько ходов; обычно пустой список.
+- Никаких предметов из воздуха; используй только инвентарь. Находки — только правдоподобные для места.
+- narration: 2–5 живых предложений по-русски, во втором лице, без markdown, без чисел хитов, без вариантов действий.
+
+БОЙ И ПРАВИЛА 5e (числа — ТОЛЬКО из «МЕШКА КУБИКОВ»)
+- Проверка ("check"): d20 + бонус навыка. Спасбросок ("save"). Атака оружием ("attack"): d20 + бонус атаки против КБ цели, обязательно укажи "target" — имя врага. СЛ по сложности действия: 5/10/15/20.
+- d20 игрока: A; с преимуществом — большее из A и B; с помехой — меньшее.
+- УРОН ОТ АТАК ОРУЖИЕМ, ХОД ВРАГОВ И ХОД СПУТНИКОВ СЧИТАЕТ ИГРА после твоего ответа и показывает отдельно. Ты описываешь только действие игрока и его исход (попал/промахнулся — по броску), НЕ описываешь ответные удары врагов и НЕ меняешь hp цели при атаке оружием.
+- Убить, прогнать или усмирить врага без оружия можно только через успешную проверку в этом же ходу (запугивание, обман, огонь, хитрость). Воин не владеет магией: молитвы и «заклинания» сами по себе никого не убивают и не изгоняют.
+- Бой идёт по очереди: игрок действует → спутники → враги. Враг, которого атаковали или который заметил игрока и настроен враждебно, получает state "angry".
+- Состояния игрока (poisoned, frightened, blinded, prone, charmed, restrained) — "conditions_add"/"conditions_remove"; помеху от них игра добавит сама. Истощение — "exhaustion_delta".
+- Второе дыхание воина — "second_wind": true. Отдых: "rest":"short" (в безопасности) или "long" (только на поляне, без врагов).
+- Вдохновение потрачено ("использую вдохновение") — "inspiration":"use".
+
+ЧТО В РУКАХ
+- "held" — правая рука (в начале там длинный меч), "held_left" — левая (в начале пустая). Меняй их ТОЛЬКО если игрок прямо достаёт, берёт, убирает, бросает или использует предмет. Иначе "keep". Факел, чтобы светить, держат в левой руке; щит — в левой.
+
+ПРОВЕРКИ — В ДВА ШАГА
+- Если исход действия зависит от удачи (скрытность, атака, прыжок, взлом, убеждение, ловушка…), НЕ описывай исход сразу. Ответь ТОЛЬКО {"pending":true,"check":{...}} — игра бросит кости и пришлёт ИТОГ ПРОВЕРКИ. Тогда опиши ход полностью по этому итогу, check = null.
+- Провал всегда имеет последствия: при проваленной скрытности враги замечают игрока (state "angry"), при проваленном прыжке — урон или падение, и т.д. Пройти мимо бодрствующих врагов можно только успешной проверкой (Скрытность, Обман, Убеждение, Запугивание) или если они мертвы, сбежали, усмирены или спят.
+
+СУЩЕСТВА — только ИЗМЕНЕНИЯ
+- "enemies": список изменений существ в текущем месте: [{"name":"точное имя из состояния","state":"...","hidden":false,"hp":7}]. Указывай только тех, кто изменился. Удалять существ нельзя: убитые — "dead", сбежавшие — "fled", усмирённые — "pacified". Скрытых, которых игрок не заметил, не упоминай. Новое существо (редко) — {"new":true,"type":"...","name":"..."}.
+
+МЕСТА И УЧАСТКИ
+- Цепочка мест: clearing «Поляна у пещеры» → cave «Сырая пещера» → corridor «Древний коридор» → stairs «Лестница в склеп» → lair «Логово Серого Зуба». "move": id соседнего места — когда игрок уходит в него.
+- Внутри места игрок может идти дальше/вглубь, осматривать боковые проходы. Тогда открой новый участок: "zone":{"advance":true,"title":"короткое название участка","features":[до 4 из: ${FEATURES.join(', ')}]} — и опиши его. Картинка рисуется из features, текст должен с ними совпадать. В пещере уместны crystals, roots, puddle, bones, rubble, web; в коридоре и на лестнице — torch, door, barrel, crate, chains, web, bones, rubble.
+- Победа ("game_over":"win"): игрок забирает сокровище из сундука в логове ("chest_taken": true).
+
+ПЕРСОНАЖИ (Скрип и Тина — их досье в состоянии)
+- Разговоры с персонажами ведёт отдельный «голос персонажа», не ты. НИКОГДА не пиши в narration прямую речь Скрипа или Тины и не пересказывай их слова — только их действия, мимику, позу. Реплику можешь вложить в "dialogue" ТОЛЬКО в критический момент (начало боя, чья-то смерть, находка, связанная с их целью) — одна короткая, в характере. Обычно "dialogue": [].
+- ВСЁ, ЧТО ЕСТЬ «НА КАРТИНКЕ» (список в состоянии), должно быть замечено в тексте, когда игрок впервые это видит: если в месте есть персонаж или существо, опиши, чем оно занято.
+- Персонажи ведут себя естественно, по своему досье и сцене первой встречи: заняты делом, не здороваются как стражники, не соглашаются со всем подряд.
+- "party": [{"id":"skrip|tina","visible":true,"met":true}] — когда игрок замечает персонажа или знакомится с ним. В отряд они вступают только через разговор.
+- Если Скрип не замечен за 2–3 хода на поляне, он сам высовывается из куста.
+
+НАСЛЕДИЕ: кости погибшего ранее героя (если есть в состоянии) лежат в указанном месте; при осмотре — "legacy_found": true, можно отдать часть его вещей.
+
+ФОРМАТ ОТВЕТА (строго JSON, без текста вокруг):
+{"narration":"...","dialogue":[],"check":null или {"kind":"check|save|attack","skill":"навык или null","ability":"СИЛ|ЛОВ|ТЕЛ|ИНТ|МДР|ХАР","dc":13,"adv":"none|advantage|disadvantage","target":"имя или null"},"hp_delta":0,"gold_delta":0,"add_items":[],"remove_items":[],"torch":null|"lit"|"out","held":"keep","held_left":"keep","move":null,"zone":null,"enemies":[],"party":[],"conditions_add":[],"conditions_remove":[],"exhaustion_delta":0,"inspiration":null,"second_wind":false,"rest":null,"remember":[],"chest_taken":false,"legacy_found":false,"effect":null|"${EFFECTS.join('|')}","game_over":null|"win"|"death"}`;
+
+const rollBag = () => { const d = n => 1 + Math.floor(Math.random()*n); return { A: d(20), B: d(20), E1: d(20), E2: d(20), d4: d(4), d6: d(6), d6b: d(6), d8: d(8), d8b: d(8), d10: d(10), d12: d(12) }; };
+function buildPrompt(text, bag, ck){
+  const pl = here(), idx = ORDER.indexOf(S.place);
+  const st = {
+    место: { id: S.place, ...placeInfo(), соседние: [ORDER[idx-1], ORDER[idx+1]].filter(Boolean) },
+    существа_здесь: pl.enemies.map(e => ({ ...e, кб: ENEMY_STATS[e.type]?.ac, атака: '+' + (ENEMY_STATS[e.type]?.atk ?? 0), урон: ENEMY_STATS[e.type]?.dmg })),
+    игрок: { hp: S.hp, max_hp: S.maxHp, кб: S.ac, бонус_мастерства: PROF, характеристики: S.stats,
+      модификаторы: Object.fromEntries(STATS.map(([k]) => [k, mod(S.stats[k])])),
+      бонусы_навыков: Object.fromEntries(SKILLS.map(([n]) => [n, skillBonus(n)])),
+      бонусы_спасбросков: Object.fromEntries(STATS.map(([k]) => [k, saveBonus(k)])), бонус_атаки_мечом: attackBonus(),
+      состояния: S.conditions, истощение: S.exhaustion, вдохновение: S.inspiration, второе_дыхание_доступно: S.secondWind, кости_хитов: S.hitDice,
+      инвентарь: S.inventory, в_правой_руке: S.held, в_левой_руке: S.left, факел_горит: torchLit(), золото: S.gold },
+    участок: S.zones[S.place], ходов_в_этом_месте: S.turnsHere, идёт_бой: S.combat,
+    на_картинке: [...here().enemies.filter(x => !x.hidden && !['dead','fled'].includes(x.state)).map(x => `${x.name} (${x.state})`),
+      ...Object.entries(COMPANIONS).filter(([id, c]) => c.place === S.place && S.party[id].visible && !S.party[id].joined && S.party[id].alive).map(([id, c]) => `${c.name} — ${S.party[id].met ? 'знаком' : 'ещё не знаком: ' + c.firstScene}`),
+      ...(S.zones[S.place]?.f || [])],
+    руки: { правая: S.held, левая: S.left },
+    персонажи: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { имя: c.name, где_живёт: c.place, внешность: c.look, досье: c.bible, первая_встреча: c.firstScene, в_отряде: S.party[id].joined, замечен: S.party[id].visible, знаком: S.party[id].met, отношение: S.party[id].approval, hp: S.party[id].hp, жив: S.party[id].alive }])),
+    хроника_мира: S.chronicle, сундук_забран: S.chestTaken,
+    погибшие_герои: LEGACY.map(l => ({ место: l.place, причина: l.cause, вещи: l.items, найден: S.legacyFound })),
+    ход: S.turn,
+  };
+  const hist = S.history.slice(-8).map(h => `Игрок: ${h.p}\nМастер: ${h.n}${h.d ? '\nРеплики: ' + h.d : ''}`).join('\n\n') || '(начало игры) ' + INTRO;
+  const forced = forcedDisadvantage('check');
+  return `${RULES}\n\nСОСТОЯНИЕ (правда, его ведёт игра):\n${JSON.stringify(st)}\n\nПОСЛЕДНИЕ ХОДЫ:\n${hist}\n\nМЕШОК КУБИКОВ ЭТОГО ХОДА: ${JSON.stringify(bag)}${forced.length ? `\nНа проверки сейчас действует помеха (${forced.join(', ')}).` : ''}${ck ? `\n\nИТОГ ПРОВЕРКИ (кости уже брошены игрой, это окончательно): ${checkLine(ck)}. Теперь опиши ход ПОЛНОСТЬЮ по этому итогу, со всеми последствиями. В ответе "check": null, "pending": false.` : ''}\n\nДЕЙСТВИЕ ИГРОКА: «${text}»`;
+}
+
+const clampInt = (v, lo, hi) => { v = Math.round(Number(v) || 0); return Math.max(lo, Math.min(hi, v)); };
+const cleanStr = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+const itemName = x => cleanStr(typeof x === 'string' ? x : (x && typeof x === 'object') ? (x.name ?? x.title ?? x.item ?? '') : '', 28);
+const STAT_RE = { 'СИЛ':/^сил|^str/i, 'ЛОВ':/^лов|^dex/i, 'ТЕЛ':/^тел|^вын|^con/i, 'ИНТ':/^инт|^int/i, 'МДР':/^мдр|^муд|^wis/i, 'ХАР':/^хар|^cha/i };
+const normStat = s => { s = String(s ?? '').trim(); for (const k in STAT_RE) if (STAT_RE[k].test(s)) return k; return null; };
+const mentions = (t, item) => item.toLowerCase().split(/\s+/).some(w => w.length >= 4 && t.includes(w.slice(0, Math.max(4, w.length - 2))));
+
+function resolveCheck(c, bag, useInspiration){
+  const kind = ['check','save','attack'].includes(c.kind) ? c.kind : 'check';
+  const skill = SKILLS.find(s => s[0].toLowerCase() === String(c.skill || '').toLowerCase());
+  const ability = kind === 'attack' ? 'СИЛ' : (skill ? skill[1] : normStat(c.ability) || 'ЛОВ');
+  const bonus = kind === 'attack' ? attackBonus() : kind === 'save' ? saveBonus(ability) : skill ? skillBonus(skill[0]) : mod(S.stats[ability]);
+  const forced = forcedDisadvantage(kind, ability);
+  let adv = c.adv === 'advantage' || useInspiration, dis = c.adv === 'disadvantage' || forced.length > 0;
+  if (adv && dis){ adv = dis = false; }
+  const dice = (adv || dis) ? [bag.A, bag.B] : [bag.A];
+  const keep = dice.length === 1 ? 0 : adv ? (bag.A >= bag.B ? 0 : 1) : (bag.A <= bag.B ? 0 : 1);
+  const d = dice[keep], dc = clampInt(c.dc, 2, 30), total = d + bonus;
+  const success = kind === 'attack' ? (d === 20 || (d !== 1 && total >= dc)) : total >= dc;
+  return { kind, skill: skill ? skill[0] : null, ability, bonus, dice, keep, dc, total, success, adv, dis, forced, crit: kind === 'attack' && d === 20, target: cleanStr(c.target, 30) };
+}
+const checkLine = c => {
+  const what = c.kind === 'attack' ? `Атака${c.target ? ' по ' + c.target : ''}` : c.kind === 'save' ? `Спасбросок ${c.ability}` : `${c.skill || c.ability}${c.skill ? ' (' + c.ability + ')' : ''}`;
+  const mode = c.adv ? ', преимущество' : c.dis ? `, помеха${c.forced?.length ? ' (' + c.forced.join(', ') + ')' : ''}` : '';
+  const dice = c.dice.length > 1 ? `[${c.dice.join(', ')}] → ${c.dice[c.keep]}` : `${c.dice[0]}`;
+  return `${what}${mode}: d20 ${dice} ${fmtMod(c.bonus)} = ${c.total} против ${c.kind === 'attack' ? 'КБ' : 'СЛ'} ${c.dc}${c.crit ? ' — КРИТ!' : ''}: ${c.success ? 'успех' : 'провал'}`;
+};
+
+/* ---------- journal log the developer can read (artifact database) ---------- */
+let DB = null;
+function logTurn(entry){
+  if (!DB) return;
+  try { DB.collection('log').add({ at: Date.now(), turn: S.turn, place: S.place, zone: S.zones[S.place]?.i || 0, ...entry,
+    state: JSON.stringify({ hp: S.hp, held: S.held, torch: torchLit(), conditions: S.conditions, enemies: here().enemies, party: S.party }).slice(0, 6000) }).catch(() => {}); } catch(e){}
+}
+
+/* ---------- what the right hand holds changes only on the player's word ---------- */
+const HOLD_RE = /(дост|бер[уё]|возьм|взял|хвата|выним|обнаж|держ|подним|сжима|вооруж|готовлю)/;
+const USE_RE = /(атак|бью|бить|удар|руб|кол[юи]|реж|маш|замах|сраж|напада|бросаю|брошу|кида|кину|швыр|мета|метн|ем |съе|пью|выпь|выпи|мажу|натира|поджиг|использ|втыка|ковыря|копа|отбива)/;
+const DROP_RE = /(убира|убер|прячу|спрячу|клад[уё]|полож|вкладыва|в ножны|бросаю|брошу|кида|кину|швыр|выкид|отда|съе|ем |выпи|пью)/;
+function guardHand(res, key, cur, t){
+  if (res[key] === undefined || res[key] === 'keep') return;
+  if (res[key] === null){
+    const named = cur && (mentions(t, cur) || /(это|его|её|ее|меч|оружие|щит|факел)/.test(t));
+    if (!(DROP_RE.test(t) && named)) res[key] = 'keep';
+    return;
+  }
+  const want = cleanStr(res[key], 28), sword = /меч/i.test(want);
+  const named = mentions(t, want) || (sword && /(меч|оружи|клинок|атак|бью|руб|удар|сраж|напада|бой)/.test(t)) || (/факел/i.test(want) && /(факел|свет|заж)/.test(t));
+  if (!((HOLD_RE.test(t) || USE_RE.test(t) || /заж/.test(t)) && named)) res[key] = 'keep';
+}
+function setHand(key, val){
+  const h = val ? cleanStr(val, 28) : null;
+  if (!h){ S[key] = null; return; }
+  const inv = S.inventory.find(i => i.toLowerCase() === h.toLowerCase()) || S.inventory.find(i => i.toLowerCase().includes(h.toLowerCase()) || h.toLowerCase().includes(i.toLowerCase()));
+  if (!inv) return;
+  const other = key === 'held' ? 'left' : 'held'; if (S[other] === inv) S[other] = null;
+  S[key] = inv; if (!/меч|факел|щит/i.test(inv)) requestItemArt(inv);
+}
+
+/* ---------- creatures: the game owns who is here; the master only sends changes ---------- */
+function patchEnemies(updates, canDefeat){
+  const pl = here();
+  for (const u of updates.slice(0, 6)){
+    if (!u || typeof u !== 'object') continue;
+    const nm = cleanStr(u.name, 30).toLowerCase();
+    let e = pl.enemies.find(x => nm && x.name.toLowerCase() === nm) || pl.enemies.find(x => nm && (x.name.toLowerCase().includes(nm) || nm.includes(x.name.toLowerCase())))
+         || (u.type && pl.enemies.find(x => x.type === u.type && !['dead','fled','pacified'].includes(x.state)));
+    if (!e){ if (u.new && ENEMIES.includes(u.type) && pl.enemies.length < 5) pl.enemies.push(newEnemy(u.type, { name: cleanStr(u.name, 30) || ENEMY_STATS[u.type].name, state: 'idle' })); continue; }
+    if (typeof u.hidden === 'boolean') e.hidden = u.hidden;
+    const st = ['idle','angry','hurt','asleep','dead','fled','pacified'].includes(u.state) ? u.state : null;
+    if (st && st !== e.state){
+      if (['dead','fled','pacified'].includes(st) && !canDefeat) { /* refused: no successful check this turn */ }
+      else e.state = st;
+    }
+    if (u.hp != null){ const hp = clampInt(u.hp, 0, 80); if (hp >= e.hp || canDefeat){ e.hp = hp; if (hp <= 0) e.state = 'dead'; } }
+  }
+}
+
+/* ---------- combat: companions and enemies act after the player, dice rolled by the game ---------- */
+const d = n => 1 + Math.floor(Math.random()*n);
+function rollDmg(spec, crit){
+  const m = /(\d+)d(\d+)(?:\s*\+\s*(\d+))?/.exec(spec || ''); if (!m) return parseInt(spec) || 1;
+  let t = +(m[3] || 0); for (let i = 0; i < (+m[1])*(crit ? 2 : 1); i++) t += d(+m[2]); return t;
+}
+const activeFoes = () => here().enemies.filter(e => !e.hidden && ['angry','hurt'].includes(e.state));
+function findTarget(name){
+  const foes = here().enemies.filter(e => !e.hidden && !['dead','fled','pacified'].includes(e.state)), nm = (name || '').toLowerCase();
+  return foes.find(e => nm && (e.name.toLowerCase().includes(nm) || nm.includes(e.name.toLowerCase()))) || foes.find(e => ['angry','hurt'].includes(e.state)) || foes[0];
+}
+function combatRound(check, bag, lines){
+  // the player's weapon hit
+  if (check && check.kind === 'attack'){
+    const tgt = findTarget(check.target);
+    if (tgt){
+      here().enemies.filter(e => !e.hidden && e.state === 'idle').forEach(e => e.state = 'angry');
+      if (tgt.state === 'asleep' || tgt.state === 'idle') tgt.state = 'angry';
+      if (check.success){
+        const dmg = Math.max(1, bag.d8 + (check.crit ? bag.d8b : 0) + mod(S.stats['СИЛ']));
+        tgt.hp = Math.max(0, tgt.hp - dmg); lines.push(`Твой удар: ${dmg} урона → ${tgt.name}${tgt.hp <= 0 ? ' — повержен' : ` (осталось ${tgt.hp})`}.`);
+        if (tgt.hp <= 0) tgt.state = 'dead'; else tgt.state = 'hurt';
+        addEffect('strike'); SFX.hit();
+      }
+    }
+  }
+  const foes = activeFoes(); S.combat = foes.length > 0;
+  if (!foes.length) return;
+  // companions in the party
+  for (const [id, c] of Object.entries(COMPANIONS)){
+    const p = S.party[id]; if (!p.joined || !p.alive || p.hp <= 0) continue;
+    if (id === 'tina' && S.hp <= S.maxHp/2 && !p.healUsed){ const h = d(8) + 2; p.healUsed = true; S.hp = Math.min(S.maxHp, S.hp + h); lines.push(`Тина прикладывает к твоей ране кашицу из трав: +${h} здоровья.`); addEffect('heal'); continue; }
+    const tgt = activeFoes()[0]; if (!tgt) break;
+    const r = d(20), hit = r === 20 || (r !== 1 && r + c.atk >= tgt.ac);
+    if (hit){ const dmg = d(c.dmg[0]) + c.dmg[1]; tgt.hp = Math.max(0, tgt.hp - dmg); if (tgt.hp <= 0) tgt.state = 'dead'; else tgt.state = 'hurt';
+      lines.push(`${c.name} (${c.weapon}): ${r}+${c.atk} против КБ ${tgt.ac} — попадание, ${dmg} урона${tgt.hp <= 0 ? `, ${tgt.name} повержен` : ''}.`); }
+    else lines.push(`${c.name} (${c.weapon}): ${r}+${c.atk} против КБ ${tgt.ac} — мимо.`);
+  }
+  // enemies
+  for (const e of activeFoes().slice(0, 3)){
+    const st = ENEMY_STATS[e.type];
+    if ((e.type === 'goblin') && e.hp <= 2 && Math.random() < .5){ e.state = 'fled'; lines.push(`${e.name} визжит и удирает в темноту.`); continue; }
+    for (let k = 0; k < (e.type === 'goblin_chief' ? 2 : 1); k++){
+      const mates = Object.entries(COMPANIONS).filter(([id]) => S.party[id].joined && S.party[id].alive && S.party[id].hp > 0);
+      const mate = mates.length && Math.random() < .25 ? mates[(Math.random()*mates.length)|0] : null;
+      const adv = !mate && (hasCond('prone') || hasCond('blinded'));
+      const r1 = d(20), r2 = d(20), r = adv ? Math.max(r1, r2) : r1, ac = mate ? mate[1].ac : S.ac;
+      const hit = r === 20 || (r !== 1 && r + st.atk >= ac), who = mate ? mate[1].name : 'тебя';
+      if (!hit){ lines.push(`${e.name} атакует ${who}: ${r}+${st.atk} против КБ ${ac} — мимо.`); continue; }
+      const dmg = rollDmg(st.dmg, r === 20);
+      if (mate){ const p = S.party[mate[0]]; p.hp = Math.max(0, p.hp - dmg); lines.push(`${e.name} бьёт ${who}: ${dmg} урона${p.hp <= 0 ? `. ${mate[1].name} падает без сознания!` : ''}.`); }
+      else {
+        S.hp = Math.max(0, S.hp - dmg); lines.push(`${e.name} атакует тебя: ${r}+${st.atk} против КБ ${ac} — попадание, ${dmg} урона.`); addEffect('blood'); SFX.hurt();
+        if (e.type === 'ghost' && !hasCond('frightened')){ const sv = d(20) + saveBonus('МДР'); if (sv < 12){ S.conditions.push({ id: 'frightened', turns: 2 }); lines.push(`Ледяное касание. Спасбросок МДР ${sv} против 12 — ты испуган.`); } else lines.push(`Спасбросок МДР ${sv} против 12 — ты не поддаёшься страху.`); }
+      }
+      if (S.hp <= 0) return;
+    }
+  }
+  S.combat = activeFoes().length > 0;
+}
+
+/* ---------- applying the master's answer ---------- */
+const CRITICAL = { moved: false, fight: false, hurt: false };
+function apply(res, text, bag, mode, preCheck){
+  const t = text.toLowerCase();
+  const narration = cleanStr(res.narration, 1400);
+  const tags = [], lines = [];
+  const useInsp = (res.inspiration === 'use' || (preCheck && preCheck.insp)) && S.inspiration;
+  if (useInsp){ S.inspiration = false; tags.push(['Вдохновение потрачено', 'good']); }
+  let check = preCheck || null;
+  if (!check && res.check && typeof res.check === 'object' && res.check.dc != null){ check = resolveCheck(res.check, bag, useInsp); SFX.dice(); }
+  if (res.inspiration === 'grant' && !S.inspiration){ S.inspiration = true; tags.push(['+ Вдохновение', 'good']); }
+  const hpBefore = S.hp, wasCombat = S.combat;
+  S.hp = clampInt(S.hp + clampInt(res.hp_delta, -12, 12), 0, S.maxHp);
+  if (res.second_wind && S.secondWind){ S.secondWind = false; S.hp = Math.min(S.maxHp, S.hp + bag.d10 + 1); tags.push([`Второе дыхание: +${bag.d10 + 1}`, 'good']); addEffect('heal'); }
+  if (res.rest === 'short' && !S.combat){ if (S.hitDice > 0){ S.hitDice--; S.hp = Math.min(S.maxHp, S.hp + Math.max(1, bag.d10 + mod(S.stats['ТЕЛ']))); } S.secondWind = true; tags.push(['Короткий отдых']); }
+  if (res.rest === 'long' && !S.combat && S.place === 'clearing'){ S.hp = S.maxHp; S.hitDice = 1; S.secondWind = true; S.exhaustion = Math.max(0, S.exhaustion - 1); S.conditions = []; for (const [id, c] of Object.entries(COMPANIONS)){ S.party[id].hp = c.hp; S.party[id].healUsed = false; } tags.push(['Долгий отдых']); }
+  S.gold = Math.max(0, S.gold + clampInt(res.gold_delta, -1000, 1000));
+  if (Array.isArray(res.remove_items)) for (const it of res.remove_items.slice(0, 5)){
+    const want = itemName(it).toLowerCase(); if (!want) continue;
+    const i = S.inventory.findIndex(x => { const l = x.toLowerCase(); return l === want || l.includes(want) || want.includes(l); });
+    if (i >= 0) S.inventory.splice(i, 1);
+  }
+  if (Array.isArray(res.add_items)) for (const it of res.add_items.slice(0, 5)){
+    const n = itemName(it); if (n && S.inventory.length < 20 && !S.inventory.some(x => x.toLowerCase() === n.toLowerCase())){ S.inventory.push(n); tags.push([`+ ${n}`]); SFX.pickup(); }
+  }
+  guardHand(res, 'held', S.held, t); guardHand(res, 'held_left', S.left, t);
+  if (res.held !== undefined && res.held !== 'keep') setHand('held', res.held);
+  if (res.held_left !== undefined && res.held_left !== 'keep') setHand('left', res.held_left);
+  const wantsLight = /(заж|подж|запал|разжиг)/.test(t) && /факел/.test(t);
+  const lightIt = (res.torch === 'lit' || (res.torch == null && wantsLight && /(вспых|загора|пламя|огон)/i.test(narration))) && hasItem(/факел/i);
+  if (lightIt){ if (!S.left || !/факел/i.test(S.left)) setHand('left', S.inventory.find(i => /факел/i.test(i))); if (!S.torchLit) SFX.torch(); S.torchLit = true; }
+  if (res.torch === 'out') S.torchLit = false;
+  if (S.held && !S.inventory.includes(S.held)) S.held = null;
+  if (S.left && !S.inventory.includes(S.left)) S.left = null;
+  if (!S.left || !/факел/i.test(S.left)) S.torchLit = false;
+  if (check && check.kind === 'attack' && hasItem(/меч/i) && !S.held) S.held = S.inventory.find(i => /меч/i.test(i));
+  // places and zones
+  const mv = typeof res.move === 'string' ? res.move : res.move && res.move.view;
+  CRITICAL.moved = false;
+  const blockers = here().enemies.filter(x => !x.hidden && x.type !== 'bat' && !['dead','fled','pacified','asleep'].includes(x.state));
+  const slipped = check && check.success && /Скрытн|Обман|Убежд|Запуг|Акробат|Атлет/.test(check.skill || '');
+  if (check && !check.success && /Скрытн/.test(check.skill || '')) here().enemies.forEach(x => { if (!x.hidden && x.state === 'idle') x.state = 'angry'; });
+  if (mv && ORDER.indexOf(mv) > ORDER.indexOf(S.place) && blockers.length && !slipped){ tags.push([`${blockers[0].name} не даёт пройти`]); blockers.forEach(x => { if (x.state === 'idle') x.state = 'angry'; }); res.move = null; }
+  const mv2 = typeof res.move === 'string' ? res.move : res.move && res.move.view;
+  if (mv2 && ORDER.includes(mv2) && mv2 !== S.place && Math.abs(ORDER.indexOf(mv2) - ORDER.indexOf(S.place)) === 1 && !(S.combat && ORDER.indexOf(mv2) > ORDER.indexOf(S.place))){
+    CRITICAL.moved = !S.places[mv2].visited; S.place = mv2; S.places[mv2].visited = true; S.turnsHere = 0; SFX.step(); tags.push([`→ ${PLACES[mv2].name}`]);
+  }
+  if (res.zone && res.zone.advance && S.place !== 'lair' && S.place !== 'clearing'){
+    const z = S.zones[S.place]; z.i++; z.f = (Array.isArray(res.zone.features) ? res.zone.features : []).filter(f => FEATURES.includes(f)).slice(0, 4); z.title = cleanStr(res.zone.title, 40); SFX.step();
+    if (z.title) tags.push([z.title]);
+  }
+  // creatures (changes only; defeat needs a successful non-weapon check)
+  const canDefeat = !!(check && check.success && check.kind !== 'attack');
+  if (Array.isArray(res.enemies)) patchEnemies(res.enemies, canDefeat);
+  if (Array.isArray(res.party)) for (const u of res.party){
+    const st = S.party[u?.id]; if (!st) continue;
+    if (u.met === true) st.met = true;
+    if (u.visible === true) st.visible = true;
+    if (u.joined === true && !st.joined && st.met && /(пойд|пошли|идём|идем|со мной|присоедин|вместе|помож)/.test(t)){ st.joined = true; tags.push([`${COMPANIONS[u.id].name} в отряде`, 'good']); }
+  }
+  // conditions
+  if (Array.isArray(res.conditions_remove)) S.conditions = S.conditions.filter(c => { const gone = res.conditions_remove.includes(c.id); if (gone) tags.push([`снято: ${condName(c.id)}`, 'good']); return !gone; });
+  if (Array.isArray(res.conditions_add)) for (const c of res.conditions_add.slice(0, 3)){
+    const id = typeof c === 'string' ? c : c?.id; if (!CONDITIONS[id]) continue;
+    S.conditions = S.conditions.filter(x => x.id !== id).concat([{ id, turns: c?.turns ? clampInt(c.turns, 1, 10) : 3 }]); tags.push([`состояние: ${condName(id)}`]);
+  }
+  const ex = clampInt(res.exhaustion_delta, -1, 1); if (ex){ S.exhaustion = Math.max(0, Math.min(6, S.exhaustion + ex)); tags.push([`истощение ${S.exhaustion}`]); }
+  if (Array.isArray(res.remember)) for (const f of res.remember.slice(0, 1)){ const s = cleanStr(f, 160); if (s) S.chronicle.push(s); }
+  if (S.chronicle.length > 30) S.chronicle.splice(0, S.chronicle.length - 30);
+  if (res.chest_taken === true && S.place === 'lair' && !activeFoes().length) S.chestTaken = true;
+  if (res.legacy_found === true) S.legacyFound = true;
+  if (res.effect && !(check && check.kind === 'attack')){ addEffect(res.effect); if (FX_SOUND[res.effect]) SFX[FX_SOUND[res.effect]](); }
+  // the fight: player's hit, then companions, then enemies
+  combatRound(check, bag, lines);
+  CRITICAL.fight = S.combat && !wasCombat; CRITICAL.hurt = S.hp < hpBefore;
+  // Skrip peeks out by himself if nobody notices him
+  S.turnsHere++;
+  let peek = null;
+  if (S.place === 'clearing' && !S.party.skrip.visible && S.turnsHere >= 3){ S.party.skrip.visible = true; peek = 'Ягодный куст шевелится, и из него высовывается тощий гоблин в бурой шапке. Он замирает с недогрызенной репой во рту.'; }
+  // conditions tick
+  S.conditions = S.conditions.map(c => c.turns ? { ...c, turns: c.turns - 1 } : c).filter(c => c.turns === null || c.turns > 0);
+  if (S.hp <= 0 || S.exhaustion >= 6) res.game_over = 'death';
+  if (res.game_over === 'win' && !S.chestTaken) res.game_over = null;
+  if (res.game_over === 'win' || res.game_over === 'death') S.over = res.game_over;
+  if (S.hp !== hpBefore) tags.push([`${S.hp > hpBefore ? '+' : ''}${S.hp - hpBefore} здоровья`, S.hp > hpBefore ? 'good' : '']);
+  // unsolicited companion lines only at critical moments, and rarely
+  let dialogue = Array.isArray(res.dialogue) ? res.dialogue.filter(x => x && COMPANIONS[x.who] && x.text && (S.party[x.who].joined || (COMPANIONS[x.who].place === S.place && S.party[x.who].visible))) : [];
+  const critical = CRITICAL.moved || CRITICAL.fight || (CRITICAL.hurt && S.hp <= S.maxHp/2) || res.chest_taken;
+  dialogue = (critical || S.turn - S.lastBanter >= 6) ? dialogue.slice(0, 1).map(x => ({ id: x.who, text: cleanStr(x.text, 300) })) : [];
+  if (dialogue.length) S.lastBanter = S.turn;
+  // journal
+  S.turn++;
+  S.history.push({ p: text, n: narration + (lines.length ? ' [Бой: ' + lines.join(' ') + ']' : ''), d: dialogue.map(x => `${COMPANIONS[x.id].name}: ${x.text}`).join(' | ') }); if (S.history.length > 24) S.history.shift();
+  if (narration || check) S.journal.push({ who: 'gm', text: narration, check, tags });
+  if (peek) S.journal.push({ who: 'gm', text: peek });
+  if (lines.length) S.journal.push({ who: 'combat', lines });
+  dialogue.forEach(x => S.journal.push({ who: 'npc', id: x.id, text: x.text })); if (dialogue.length) SFX.talk();
+  if (S.over === 'death'){
+    S.journal.push({ who: 'sys', text: 'Ты погиб. Твои кости останутся здесь, и следующий искатель приключений их найдёт. Нажми «Новая игра».' });
+    LEGACY.push({ place: S.place, cause: (lines.slice(-1)[0] || narration).slice(0, 160), items: S.inventory.filter(i => !/огнив|краюх/i.test(i)).slice(0, 4), turn: S.turn }); saveLegacy(); SFX.death();
+  }
+  if (S.over === 'win'){ S.journal.push({ who: 'sys', text: `Победа! Сокровище Серого Зуба твоё. Золото: ${S.gold}. Ходов: ${S.turn}.` }); SFX.win(); }
+  if (S.journal.length > 200) S.journal.splice(0, S.journal.length - 200);
+  logTurn({ mode, player: text, raw: JSON.stringify(res).slice(0, 8000), combat: lines.join(' | ') });
+  save(); renderAll();
+}
+
+/* ---------- questions to the master, out of character: no time passes ---------- */
+const ASK_RE = /^\s*(мастер|гм|gm|дм|dm|ведущий)(?=[\s,:!.?\-—]|$)[\s,:!.\-—]*/i;
+function askPrompt(q, bag, ck){
+  const base = buildPrompt('(вопрос мастеру, не действие)', bag).split('\n\nДЕЙСТВИЕ ИГРОКА:')[0];
+  return `${base}
+
+СЕЙЧАС ИГРОК НЕ ДЕЙСТВУЕТ, А ЗАДАЁТ ВОПРОС ТЕБЕ КАК ВЕДУЩЕМУ (вне игры, время не идёт, враги не ходят).
+Отвечай как опытный мастер D&D за столом: честно и по делу, только то, что персонаж может видеть, знать или понять отсюда. Можешь объяснить, как сработают правила и какие исходы возможны в общих чертах (например, кого заденет ловушка, если её задействовать). Не раскрывай скрытых врагов и чужие тайны без успешной проверки. Если ответ требует внимательности или знаний (Внимательность, Анализ, Природа, Магия, История, Проницательность…), ответь ТОЛЬКО {"pending":true,"check":{"kind":"check","skill":"...","ability":"...","dc":12}} — игра бросит кости и пришлёт итог.${ck ? `\nИТОГ ПРОВЕРКИ: ${checkLine(ck)}. Ответь с учётом этого итога.` : ''}
+Ответ — JSON: {"answer":"2–5 предложений от лица мастера, можно на «ты»","remember":[]}
+
+ВОПРОС ИГРОКА: «${q}»`;
+}
+/* ---------- talking to a character: a separate call in that character's own voice ---------- */
+const NAME_RE = { skrip: /скрип/i, tina: /тин[аеуыо]|полын/i };
+const SPEECH_RE = /\?|[«"]|^\s*[-—]|^\s*(а |ну |ты |вы |эй|че|чё|что|как |кто|где|зачем|почему|откуда|расскаж|скажи|слушай|привет|здаров|давай|пошли|пойд|тогда|ладно|окей|ок |хорошо|да[ ,!.]|нет[ ,!.]|ого|спасибо|прости|извини|не бойся|успокойся|я не|я тебе|я хочу тебе|договорились|идёт|идет)/i;
+const ACTION_RE = /(иду|захожу|вхожу|прохожу|атак|бью|ударю|убиваю|руб[лию]|осм[ао]тр|подбира|зажига|достаю|бросаю|крадусь|ищу|спускаюсь)/i;
+function addressed(t){
+  const low = t.toLowerCase();
+  if (/(атак|бью|ударю|убиваю|руб[лию])/.test(low)) return null;
+  const present = Object.keys(COMPANIONS).filter(id => { const p = S.party[id]; return p.alive && (p.joined || (COMPANIONS[id].place === S.place && p.visible)); });
+  for (const id of present) if (NAME_RE[id].test(t)) return id;
+  if (ACTION_RE.test(low) || !SPEECH_RE.test(t)) return null;
+  const lastNpc = [...S.journal].reverse().find(x => x.who === 'npc' || x.who === 'you' || x.who === 'gm');
+  if (lastNpc && lastNpc.who === 'npc' && present.includes(lastNpc.id)) return lastNpc.id;
+  const met = present.filter(id => S.party[id].met || S.party[id].visible);
+  return met.length === 1 ? met[0] : null;
+}
+const CHAR_EFFECTS = { tina: ['heal_player','cure_poison','pacify_ghost'], skrip: ['reveal_trap','reveal_passage','steal_crown'] };
+function charPrompt(id, text){
+  const c = COMPANIONS[id], p = S.party[id];
+  const recent = S.history.slice(-4).map(h => `Игрок: ${h.p}\nПроисходило: ${h.n}`).join('\n');
+  const talk = p.talk.slice(-10).map(x => `${x.who === 'you' ? 'Игрок' : c.name}: ${x.text}`).join('\n') || '(вы ещё не разговаривали)';
+  const ghostHere = S.place === 'stairs' && here().enemies.some(e => e.type === 'ghost' && !e.hidden && !['dead','fled','pacified'].includes(e.state));
+  return `Ты отыгрываешь персонажа ролевой игры. Ты — ${c.name}.
+ВНЕШНОСТЬ: ${c.look}
+ДОСЬЕ:
+${c.bible}
+
+СЕЙЧАС: место — «${placeInfo().name}» (${placeInfo().about}). ${p.joined ? 'Ты идёшь в отряде с игроком.' : p.met ? 'Ты уже знаком с игроком, но не в его отряде.' : 'Ты впервые разговариваешь с этим человеком. Ты был занят: ' + c.firstScene + '.'}
+Твоё отношение к игроку: ${p.approval} (от −10 враждебно до +10 предан). Игрок — воин в кольчуге с длинным мечом${torchLit() ? ' и горящим факелом' : ''}.${ghostHere ? ' Перед вами на лестнице висит Призрак Хранителя в капюшоне.' : ''}${S.combat ? ' Идёт бой!' : ''}
+Что недавно происходило:
+${recent || '(начало)'}
+Ваш разговор до сих пор:
+${talk}
+
+КАК ОТВЕЧАТЬ:
+- Говори живо, своим голосом из досье, 1–3 коротких фразы. Не повторяй уже сказанное. Можешь спрашивать, торговаться, отказывать, огрызаться, шутить, молчать в ответ на глупость.
+- Ты не услужливый помощник. У тебя свои цели и страхи. Не соглашайся автоматически. Не принимай выдуманные игроком факты о тебе — поправляй их по досье.
+- Тайны раскрывай только если доверяешь (отношение 3+) или получаешь выгоду.
+- Вступаешь в отряд только если тебе это выгодно или ты доверяешь, и это прозвучало в разговоре.
+- В "action" — короткая ремарка о том, что ты делаешь (третье лицо, без кавычек), или пусто.
+- "effect" — только если это действительно произошло сейчас: ${CHAR_EFFECTS[id].join(', ')} или null.${id === 'tina' ? ' pacify_ghost — только если призрак перед тобой и ты с ним заговорила.' : ''}
+
+Ответь ТОЛЬКО JSON: {"reply":"прямая речь","action":"","approval_delta":0,"join":null,"leave":null,"gives":null,"effect":null}
+
+ИГРОК ГОВОРИТ ИЛИ ДЕЛАЕТ: «${text}»`;
+}
+function applyTalk(id, res, text){
+  const c = COMPANIONS[id], p = S.party[id], tags = [];
+  p.met = true; p.visible = true;
+  const reply = cleanStr(res.reply, 500), action = cleanStr(res.action, 200);
+  const ad = clampInt(res.approval_delta, -2, 2); if (ad){ p.approval = Math.max(-10, Math.min(10, p.approval + ad)); tags.push([`${c.name}: отношение ${fmtMod(ad)}`, ad > 0 ? 'good' : '']); }
+  if (res.join === true && !p.joined){ p.joined = true; tags.push([`${c.name} в отряде`, 'good']); }
+  if (res.leave === true && p.joined){ p.joined = false; tags.push([`${c.name} уходит из отряда`]); }
+  const gift = itemName(res.gives); if (gift && !S.inventory.includes(gift)){ S.inventory.push(gift); tags.push([`+ ${gift}`]); SFX.pickup(); }
+  const fx = CHAR_EFFECTS[id].includes(res.effect) ? res.effect : null;
+  if (fx === 'heal_player' && !p.healUsed){ const h = d(8) + 2; p.healUsed = true; S.hp = Math.min(S.maxHp, S.hp + h); tags.push([`+${h} здоровья`, 'good']); addEffect('heal'); SFX.heal(); }
+  if (fx === 'cure_poison' && hasCond('poisoned')){ S.conditions = S.conditions.filter(x => x.id !== 'poisoned'); tags.push(['снято: Отравлен', 'good']); }
+  if (fx === 'pacify_ghost'){ const g = here().enemies.find(e => e.type === 'ghost' && !e.hidden && !['dead','fled','pacified'].includes(e.state)); if (g){ g.state = 'pacified'; S.combat = activeFoes().length > 0; S.chronicle.push('Тина узнала в призраке своего брата Ивара, и он упокоился.'); addEffect('magic'); SFX.magic(); tags.push(['Призрак упокоился', 'good']); } }
+  if (fx === 'reveal_trap') S.chronicle.push('Скрип рассказал: третья плита в коридоре — ловушка с отравленными дротиками.');
+  if (fx === 'reveal_passage') S.chronicle.push('Скрип рассказал о лазе за троном Серого Зуба, ведущем к сундуку.');
+  p.talk.push({ who: 'you', text }, { who: id, text: reply }); if (p.talk.length > 24) p.talk.splice(0, p.talk.length - 24);
+  S.turn++; S.turnsHere++;
+  S.history.push({ p: text, n: `${c.name}${action ? ' (' + action + ')' : ''}: ${reply}` }); if (S.history.length > 24) S.history.shift();
+  S.journal.push({ who: 'npc', id, text: reply, action, tags });
+  SFX.talk();
+  logTurn({ mode: 'talk:' + id, player: text, raw: JSON.stringify(res).slice(0, 4000) });
+  save(); renderAll();
+}
+
+/* ---------- AI-drawn items for anything the library does not have ---------- */
+const pendingArt = new Set();
+async function requestItemArt(name){
+  if (!sample || pendingArt.has(name) || (S.itemArt && S.itemArt[name]) || ITEM_ART.some(([re]) => re.test(name.toLowerCase()))) return;
+  pendingArt.add(name);
+  try {
+    const res = await sample.json(`Нарисуй пиксельную иконку предмета «${name}» для тёмной фэнтези-игры, 12×12 пикселей. Ответь JSON {"rows":[ровно 12 строк по 12 символов]}. Символы: "." прозрачный, "0" чёрный, "1" тёмно-серый, "2" серый, "3" светло-серый, "4" почти белый, "5" тёмно-коричневый, "6" коричневый, "7" бежевый, "8" тёмно-красный, "9" красный, "a" оранжевый, "b" жёлтый, "c" тёмно-зелёный, "d" зелёный, "e" тёмно-синий, "f" голубой, "g" тёмно-фиолетовый, "h" фиолетовый. Предмет крупно по центру, узнаваемый силуэт, тени снизу-справа, блики сверху-слева, без фона.`, { modelTier: 'default', cache: { gcTime: 86400000 } });
+    const rows = Array.isArray(res?.rows) ? res.rows.slice(0, 16).map(r => String(r).toLowerCase().replace(/[^.0-9a-h]/g, '.').slice(0, 16)) : null;
+    if (rows && rows.some(r => /[0-9a-h]/.test(r))){ S.itemArt[name] = rows; save(); }
+  } catch(e){} finally { pendingArt.delete(name); }
+}
+
+/* ---------- offline fallback: simple keyword engine so the page plays without Claude ---------- */
+function cannedTalk(id, t){
+  t = t.toLowerCase(); const p = S.party[id];
+  if (/(пойд|присоедин|со мной|вместе)/.test(t)) return id === 'skrip'
+    ? (p.approval >= 1 || /(корон|блестя|золот|еда|хлеб)/.test(t) ? { reply: 'Хе-хе. Скрип пойдёт. Но корона — Скрипу, и Гром — твой, не Скрипа!', join: true, approval_delta: 1 } : { reply: 'Ой-ой, просто так Скрип никуда не ходит. Что Скрипу с того?', approval_delta: 0 })
+    : { reply: 'Вдвоём искать брата проще. Только грибы мне не топчи.', join: true, approval_delta: 1 };
+  if (id === 'tina' && /(призрак|ивар|брат)/.test(t) && S.place === 'stairs') return { reply: 'Ивар?.. Это же его плащ. Ивар, это я, Тина. Медальон — видишь? Ты можешь идти домой.', action: 'снимает с шеи медальон с пером', effect: 'pacify_ghost', approval_delta: 1 };
+  if (/(хлеб|краюх|ед[ауы])/.test(t) && id === 'skrip') return { reply: 'Хлебушек! Ладно, слушай: третья плита в коридоре — дырявые стены плюются иголками.', approval_delta: 2, effect: 'reveal_trap' };
+  return id === 'skrip' ? { reply: 'Скрип ничего не знает. Скрип шёл мимо. Шишки собирал, вот.', action: 'прячет за спину недогрызенную репу' } : { reply: 'Не наступи на грибы. Если ищешь неприятности, они глубже.', action: 'не отрываясь срезает гриб' };
+}
+function offline(t, bag){
+  t = t.toLowerCase();
+  const pl = here(), alive = pl.enemies.filter(e => !e.hidden && !['dead','fled','pacified'].includes(e.state));
+  const R = (narration, extra = {}) => Object.assign({ narration }, extra);
+  const idx = ORDER.indexOf(S.place), next = ORDER[idx + 1], prev = ORDER[idx - 1];
+  const compHere = Object.entries(COMPANIONS).filter(([id, c]) => c.place === S.place && S.party[id].alive && !S.party[id].joined);
+  const talkTo = Object.entries(COMPANIONS).find(([id, c]) => t.includes(c.name.toLowerCase().slice(0, 4)));
+  if (/брос.*факел/.test(t)) return hasItem(/факел/i) ? R('Ты швыряешь факел вперёд. Он гаснет в луже.', { remove_items: ['факел'], torch: 'out', effect: 'fire' }) : R('У тебя нет факела.');
+  if (/туш/.test(t)) return R('Ты прижимаешь факел к камню. Шипение, дым, темнота.', { torch: 'out', effect: 'dust' });
+  if (/факел|зажг|зажеч/.test(t) && !/(брос|кида|убира)/.test(t)) return hasItem(/факел/i) ? (torchLit() ? R('Факел и так горит.') : R('Ты берёшь факел в левую руку. Огниво высекает искру, промасленная тряпка вспыхивает.', { torch: 'lit', held_left: 'факел', effect: 'fire' })) : R('Факела нет.');
+  if (/отдых|отдохн|привал/.test(t)) return alive.length ? R('Отдыхать рядом с врагами — плохая идея.') : R(S.place === 'clearing' ? 'Ты разводишь небольшой костёр и спишь до рассвета.' : 'Ты переводишь дух, прислонившись к стене.', { rest: S.place === 'clearing' ? 'long' : 'short' });
+  if (/второе дыхание/.test(t)) return R('Ты стискиваешь зубы и находишь в себе силы.', { second_wind: true });
+  if (/осм[ао]тр|смотр|огля|изуч|прислуш|ищу/.test(t)){
+    const extra = {};
+    if (S.place === 'clearing' && !S.party.skrip.visible) { extra.party = [{ id: 'skrip', visible: true, met: true }]; extra.dialogue = [{ who: 'skrip', text: 'Не бей! Скрип просто сидел в кустах. Скрип полезный, Скрип знает пещеру!' }]; extra.check = { kind: 'check', skill: 'Внимательность', dc: 10 }; }
+    const hidden = pl.enemies.filter(e => e.hidden && e.state !== 'dead');
+    if (hidden.length){ extra.enemies = pl.enemies.map(e => ({ ...e, hidden: false })); extra.check = { kind: 'check', skill: 'Внимательность', dc: 12 }; }
+    const list = alive.map(e => e.name).concat(hidden.map(e => e.name));
+    return R(`${placeInfo().name}: ${placeInfo().about}.${list.length ? ' Здесь: ' + list.join(', ') + '.' : ''}`, extra);
+  }
+  if (S.place === 'clearing'){
+    const PICK = [[/камен|булыж/, 'камень'], [/трав|пучок/, 'пучок травы'], [/грязь|грязи|глин/, 'ком грязи'], [/палк|ветк|сук/, 'палка'], [/гриб/, 'гриб'], [/цвет/, 'цветок'], [/шишк/, 'шишка'], [/ягод/, 'ягоды'], [/лист/, 'лист'], [/мох/, 'мох'], [/червя|червь/, 'червяк'], [/вод/, 'горсть воды'], [/земл|песок/, 'горсть земли']];
+    if (/(подбир|подним|рву|срыва|собира|набира|черпа|копа|нахож|лома|хвата|ловлю)/.test(t)){ const hit = PICK.find(([re]) => re.test(t)); if (hit) return R(`Ты подбираешь и кладёшь в сумку: ${hit[1]}.`, { add_items: [hit[1]] }); }
+  }
+  if (S.place === 'lair' && /(сундук|сокровищ)/.test(t) && /(откр|забира|бер|хвата)/.test(t)){
+    if (alive.length) return R(`${alive[0].name} не даст тебе подойти к сундуку.`);
+    return R('Крышка сундука поддаётся. Золото, камни и корона Серого Зуба — всё твоё!', { gold_delta: 300, add_items: ['корона Серого Зуба'], chest_taken: true, effect: 'sparkle', game_over: 'win' });
+  }
+  if (/(брос|кида|метн|швыр)/.test(t)){ const it = S.inventory.find(i => !/меч|факел|огнив|кольчуг/i.test(i) && mentions(t, i)); if (it){ const tgt = alive[0];
+    return R(tgt ? `Ты швыряешь «${it}» в цель: ${tgt.name} отвлекается.` : `Ты бросаешь «${it}» вперёд.`, { remove_items: [it], held: null, effect: tgt ? 'strike' : 'dust' }); } }
+  if (/(убираю|прячу).*(меч)/.test(t)) return R('Ты вкладываешь меч в ножны.', { held: null });
+  if (/(достаю|беру|держу|вынимаю|обнажаю)/.test(t)){ if (/меч/.test(t)) return R('Ты обнажаешь длинный меч.', { held: 'длинный меч' }); const it = S.inventory.find(i => mentions(t, i)); if (it){ const lf = /лев/.test(t) || /щит/i.test(it); return R(`Ты берёшь в ${lf ? 'левую' : 'правую'} руку: ${it}.`, lf ? { held_left: it } : { held: it }); } }
+  if (/атак|удар|бью|бить|руб|напада/.test(t)){
+    const tgt = findTarget(''); if (!tgt) return R('Ты рубишь воздух. Никого.', { held: 'длинный меч' });
+    const hit = bag.A === 20 || (bag.A !== 1 && bag.A + attackBonus() >= tgt.ac);
+    return R(hit ? `Ты достаёшь врага клинком: ${tgt.name}.` : `Клинок проходит мимо: ${tgt.name} уворачивается.`, { held: 'длинный меч', check: { kind: 'attack', dc: tgt.ac, target: tgt.name } });
+  }
+
+  if (next && /(дальше|вперёд|вперед|вглубь|в пещеру|захож|вхож|спуска|вниз)/.test(t)){
+    if (alive.some(e => e.state === 'angry')) return R(`${alive.find(e => e.state === 'angry').name} преграждает путь.`);
+    if (S.place === 'stairs' && alive.some(e => e.type === 'ghost')) return R('Призрак Хранителя преграждает путь вниз.', { conditions_add: [{ id: 'frightened', turns: 2 }], effect: 'magic' });
+    const pe = S.places[next].enemies.map(e => S.place === 'cave' && next === 'corridor' ? e : e);
+    return R(`Ты идёшь дальше: ${PLACES[next].name}. ${PLACES[next].about}.`, { move: next, enemies: pe.map(e => next === 'stairs' && e.type === 'ghost' ? { ...e, hidden: false, state: 'angry' } : e) });
+  }
+  if (prev && /(назад|обратно|выхож|наружу|поднима)/.test(t)) return R(`Ты возвращаешься: ${PLACES[prev].name}.`, { move: prev, enemies: S.places[prev].enemies });
+  if (/пукн|перд/.test(t)) return R('Звук гулко раскатывается под сводами. Где-то хихикнули.', { effect: 'smell' });
+  if (/плю/.test(t)) return R('Ты сплёвываешь. Мир это запомнит.', { effect: 'spit', remember: ['Игрок плевался у входа'] });
+  if (/крик|кричу|ору|эй/.test(t)) return R('Эхо катится вглубь и долго не стихает.', { effect: 'shout' });
+  return R('Без ИИ-мастера игра понимает только простые действия: осмотреться, факел, подобрать, достать, бросить, атаковать, идти дальше или назад, позвать спутника, отдохнуть.');
+}
+
+/* =====================  UI  ===================== */
+function renderHud(){
+  $('locname').textContent = placeInfo().name;
+  const h = $('hearts'); h.textContent = '';
+  for (let i = 0; i < S.maxHp; i++){ const d = document.createElement('span'); d.className = 'heart' + (i < S.hp ? '' : ' empty'); h.append(d); }
+  h.setAttribute('aria-label', `${S.hp} из ${S.maxHp}`);
+  $('ac').textContent = S.ac; $('gold').textContent = S.gold;
+  const insp = $('insp'); insp.className = 'badge' + (S.inspiration ? ' on' : ''); insp.firstChild.textContent = S.inspiration ? 'есть' : '—';
+  const wind = $('wind'); wind.className = 'badge' + (S.secondWind ? ' on' : ''); wind.firstChild.textContent = S.secondWind ? 'готово' : 'потрачено';
+  const lastStat = [...S.journal].reverse().find(e => e.check)?.check?.ability;
+  const st = $('stats'); st.textContent = '';
+  for (const [k, full] of STATS){
+    const b = document.createElement('div'); b.className = 'stat-box' + (k === lastStat ? ' hit' : ''); b.title = full + (SAVE_PROF.includes(k) ? ' (спасбросок с мастерством)' : '');
+    const kk = document.createElement('span'); kk.className = 'k'; kk.textContent = k;
+    const v = document.createElement('span'); v.className = 'v'; v.textContent = S.stats[k];
+    const m = document.createElement('span'); m.className = 'm'; m.textContent = fmtMod(mod(S.stats[k]));
+    b.append(kk, v, m); st.append(b);
+  }
+  const conds = $('conds'); conds.textContent = '';
+  const condList = S.conditions.map(c => [`${condName(c.id)}${c.turns ? ' (' + c.turns + ')' : ''}`, CONDITIONS[c.id].rule]);
+  if (S.exhaustion) condList.push([`Истощение ${S.exhaustion}`, 'уровни 1–6; на 6 смерть']);
+  if (!condList.length) condList.push(['нет', '']);
+  condList.forEach(([t, rule]) => { const li = document.createElement('li'); li.textContent = t; li.title = rule; if (rule) li.className = 'cond'; conds.append(li); });
+  const inv = $('inv'); inv.textContent = '';
+  S.inventory.forEach(it => { const li = document.createElement('li'); li.textContent = it;
+    if (torchLit() && /факел/i.test(it)){ li.className = 'lit'; li.textContent = it + ' (горит)'; }
+    if (S.held === it){ li.className = 'held'; li.textContent = it + ' (в руке)'; }
+    inv.append(li); });
+  const party = $('party'); party.textContent = '';
+  const known = Object.entries(COMPANIONS).filter(([id]) => S.party[id].joined);
+  if (!known.length){ const s = document.createElement('span'); s.className = 'mode'; s.textContent = 'ты один'; party.append(s); }
+  known.forEach(([id, c]) => {
+    const p = S.party[id], el = document.createElement('div'); el.className = 'mate';
+    const im = document.createElement('img'); im.src = portrait(id); im.alt = '';
+    const tx = document.createElement('div'); const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = c.name;
+    const sub = document.createElement('div'); sub.className = 'sub';
+    sub.textContent = `${p.hp > 0 ? p.hp + '/' + c.hp + ' хп' : 'без сознания'} · КБ ${c.ac} · отношение ${fmtMod(p.approval)}`;
+    tx.append(nm, sub); el.append(im, tx); party.append(el);
+  });
+  const sk = $('skills'); if (!sk.childElementCount) SKILLS.forEach(([n, ab]) => { const li = document.createElement('li'); li.className = 'skill' + (FIGHTER_SKILLS.includes(n) ? ' pro' : ''); li.textContent = `${n} ${fmtMod(skillBonus(n))}`; li.title = ab; sk.append(li); });
+}
+function renderJournal(){
+  const j = $('journal'); j.textContent = '';
+  for (const e of S.journal){
+    if (e.who === 'npc'){
+      const d = document.createElement('div'); d.className = 'say';
+      const im = document.createElement('img'); im.src = portrait(e.id); im.alt = '';
+      const box = document.createElement('div'); const who = document.createElement('div'); who.className = 'who'; who.textContent = COMPANIONS[e.id].name;
+      box.append(who);
+      if (e.action){ const ac = document.createElement('div'); ac.className = 'act'; ac.textContent = e.action; box.append(ac); }
+      if (e.text){ const tx = document.createElement('div'); tx.className = 'txt'; tx.textContent = `«${e.text}»`; box.append(tx); }
+      if (e.tags && e.tags.length){ const tg = document.createElement('div'); tg.className = 'tags'; e.tags.forEach(([t, k]) => { const s = document.createElement('span'); s.className = 'tag' + (k ? ' ' + k : ''); s.textContent = t; tg.append(s); }); box.append(tg); }
+      d.append(im, box); j.append(d); continue;
+    }
+    if (e.who === 'ooc'){
+      const d = document.createElement('div'); d.className = 'entry ooc';
+      const h = document.createElement('div'); h.className = 'who'; h.textContent = 'Мастер (вне игры)'; d.append(h);
+      if (e.check){ const c = document.createElement('div'); c.className = 'roll ' + (e.check.success ? 'ok' : 'fail'); c.textContent = checkLine(e.check); d.append(c); }
+      d.append(document.createTextNode(e.text)); j.append(d); continue;
+    }
+    if (e.who === 'combat'){
+      const d = document.createElement('div'); d.className = 'entry combat';
+      e.lines.forEach(l => { const r = document.createElement('div'); r.textContent = l; d.append(r); }); j.append(d); continue;
+    }
+    if (e.who === 'gm' && !e.text && !e.check) continue;
+    const d = document.createElement('div'); d.className = 'entry ' + e.who;
+    if (e.check){ const c = document.createElement('div'); c.className = 'roll ' + (e.check.success ? 'ok' : 'fail'); c.textContent = checkLine(e.check); d.append(c, document.createElement('br')); }
+    if (e.text) d.append(document.createTextNode(e.text));
+    if (e.tags && e.tags.length){ const tg = document.createElement('div'); tg.className = 'tags'; e.tags.forEach(([t, k]) => { const s = document.createElement('span'); s.className = 'tag' + (k ? ' ' + k : ''); s.textContent = t; tg.append(s); }); d.append(tg); }
+    j.append(d);
+  }
+  j.scrollTop = j.scrollHeight;
+}
+function renderAll(){ renderHud(); renderJournal(); }
+
+const ERR = { not_granted:'Ты не разрешил странице обращаться к Claude, поэтому включён упрощённый режим.', sampling_disabled:'ИИ-мастер сейчас недоступен, поэтому включён упрощённый режим.', rate_limited:'Слишком много ходов подряд. Подожди немного и повтори.', session_expired:'Перезапусти игру.', refused:'Мастер отказался описывать это действие. Попробуй иначе.', invalid_json:'Мастер ответил неразборчиво. Повтори ход.', upstream_error:'Связь с мастером прервалась. Повтори ход.', limit_reached:'Бесплатные ходы мастера на сегодня кончились. Завтра будут новые, или можно докупить.', busy_today:'Мастер сегодня перегружен игроками. Загляни чуть позже.', invalid_request:'Мастер не понял запрос. Повтори ход.' };
+async function act(text){
+  text = cleanStr(text, 240); if (!text || busy) return;
+
+  if (S.over){ S.journal.push({ who: 'sys', text: 'Игра окончена. Нажми «Новая игра» вверху.' }); renderJournal(); return; }
+  busy = true; $('go').disabled = true; $('cmd').value = '';
+  S.journal.push({ who: 'you', text }); renderJournal();
+  const bag = rollBag();
+  const think = document.createElement('div'); think.className = 'entry thinking'; think.textContent = 'Мастер бросает кости и думает…'; $('journal').append(think); $('journal').scrollTop = 1e9;
+  try {
+    const tier = { modelTier: $('tier').value, cache: false };
+    const who = ASK_RE.test(text) ? null : addressed(text);
+    if (ASK_RE.test(text)){
+      const q = text.replace(ASK_RE, '');
+      let res = sample ? await sample.json(askPrompt(q, bag), tier) : { answer: 'Без ИИ-мастера я не могу отвечать на вопросы.' };
+      let ck = null;
+      if (sample && res && res.check && res.check.dc != null && !res.answer){ ck = resolveCheck(res.check, bag, false); SFX.dice(); res = await sample.json(askPrompt(q, bag, ck), tier); }
+      think.remove();
+      S.journal.push({ who: 'ooc', text: cleanStr(res && res.answer, 1200) || 'Мастер задумался и ничего не ответил. Спроси иначе.', check: ck });
+      if (res && Array.isArray(res.remember) && res.remember[0]) S.chronicle.push(cleanStr(res.remember[0], 160));
+      S.history.push({ p: 'Вопрос мастеру: ' + q, n: 'Мастер: ' + cleanStr(res && res.answer, 400) }); if (S.history.length > 24) S.history.shift();
+      logTurn({ mode: 'ask', player: text, raw: JSON.stringify(res).slice(0, 4000) }); save(); renderAll();
+    } else if (who){
+      const res = sample ? await sample.json(charPrompt(who, text), tier) : cannedTalk(who, text);
+      if (!res || typeof res !== 'object') throw { code: 'invalid_json' };
+      think.remove(); applyTalk(who, res, text);
+    } else {
+      let res;
+      if (sample){
+        res = await sample.json(buildPrompt(text, bag), tier); if (!res || typeof res !== 'object') throw { code: 'invalid_json' };
+        if (res.check && res.check.dc != null && (res.pending || !res.narration)){
+          const insp = res.inspiration === 'use' && S.inspiration;
+          const ck = resolveCheck(res.check, bag, insp); ck.insp = insp; SFX.dice();
+          think.textContent = `${checkLine(ck)} — мастер описывает исход…`;
+          const res2 = await sample.json(buildPrompt(text, bag, ck), tier); if (!res2 || typeof res2 !== 'object') throw { code: 'invalid_json' };
+          if (insp) res2.inspiration = 'use';
+          think.remove(); apply(res2, text, bag, 'gm2', ck);
+        } else { think.remove(); apply(res, text, bag, 'gm'); }
+      } else { res = offline(text, bag); think.remove(); apply(res, text, bag, 'offline'); }
+    }
+  } catch(e){
+    think.remove();
+    const code = e && e.code;
+    if (['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed'].includes(code)){ sample = null; setMode(); }
+    S.journal.pop(); S.journal.push({ who: 'sys', text: ERR[code] || 'Что-то пошло не так. Повтори ход.' });
+    if (code === 'limit_reached' && window.Platform) window.Platform.paywall();
+    if (!code) console.error(e);
+    logTurn({ mode: 'error', player: text, raw: String(code || e && e.message || e).slice(0, 500) });
+    $('cmd').value = text; renderJournal();
+  } finally { busy = false; $('go').disabled = false; $('cmd').focus({ preventScroll: true }); }
+}
+function setMode(){
+  const m = $('mode');
+  if (sample){ m.className = 'mode'; m.textContent = 'Мастер на связи. Пиши что угодно — он бросит кости по правилам 5e и рассчитает последствия.'; $('tier').disabled = false; }
+  else { m.className = 'mode off'; m.textContent = 'Мастер недоступен, включён упрощённый режим: работают только простые команды.'; $('tier').disabled = true; }
+}
+function restart(){
+  S = newGame(); parts = []; diceShow = null;
+  const line = STATS.map(([k]) => `${k} ${S.stats[k]}`).join(', ');
+  S.journal.push({ who: 'sys', text: `Новый воин. Кости брошены (4d6, лучшие три): ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` });
+  if (LEGACY.length) S.journal.push({ who: 'sys', text: `В этом мире уже погибали герои (${LEGACY.length}). Их кости где-то здесь.` });
+  S.journal.push({ who: 'gm', text: INTRO });
+  save(); renderAll();
+}
+$('form').addEventListener('submit', e => { e.preventDefault(); act($('cmd').value); });
+$('restart').addEventListener('click', restart);
+$('sound').addEventListener('click', () => setSound(!AU.on));
+$('music').addEventListener('click', () => setMusic(!MU.on));
+if (freshStart) restart(); else renderAll();
+requestAnimationFrame(frame);
+(async () => { try { sample = window.claude ? await window.claude.use('sample') : null; } catch(e){ sample = null; } setMode(); })();
+(async () => { try { DB = window.claude ? await window.claude.use('db') : null; } catch(e){ DB = null; } })();
+})();
+
+</script>
+</html>

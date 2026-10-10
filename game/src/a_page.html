@@ -1,0 +1,133 @@
+<title>Пещера Серого Зуба</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: pixel viewport + character sheet on the left, journal + command line on the right; stacks on phones. One dark world by design. */
+:root{
+  color-scheme: dark;
+  --bg:#0b0916; --panel:#141126; --panel-2:#1d1834; --line:#2e2750;
+  --ink:#ecdfc6; --muted:#9a90b4; --ember:#f29a3c; --blood:#d4483a; --moss:#7fbf5a; --frost:#b39cff; --gold:#ecd06a;
+  --f-display:"Pixelify Sans", "Courier New", monospace;
+  --f-body:"PT Serif", Georgia, "Times New Roman", serif;
+  --f-ui:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55}
+.wrap{max-width:1200px;margin:0 auto;padding-inline:16px;padding-block:18px 28px;display:grid;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px}
+h1{font-family:var(--f-display);font-weight:600;font-size:clamp(22px,3.4vw,32px);letter-spacing:.02em;margin:0;text-wrap:balance}
+h1 span{color:var(--ember)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-family:var(--f-ui);font-size:12px;color:var(--muted)}
+.tools label{display:flex;gap:6px;align-items:center}
+select,button,input{font:inherit}
+select{background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:5px 8px;border-radius:2px}
+.btn{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);padding:6px 12px;border-radius:2px;cursor:pointer;font-family:var(--f-ui);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.btn:hover{border-color:var(--ember)}
+.btn[aria-pressed="true"]{border-color:var(--ember);color:var(--ember)}
+.btn:focus-visible,select:focus-visible,#cmd:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+.game{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:940px){.game{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}}
+.left,.right{display:grid;gap:12px;min-width:0;align-content:start}
+.view{position:relative;background:#000;border:3px solid #2a2346;box-shadow:0 0 0 1px #000,0 10px 40px rgba(90,40,160,.25);aspect-ratio:240/135;max-width:100%;overflow:hidden}
+.view canvas{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges;transition:filter .4s}
+.locname{position:absolute;left:8px;top:6px;font-family:var(--f-display);font-size:clamp(12px,1.8vw,16px);text-shadow:2px 2px 0 #000;pointer-events:none}
+.sheet{display:grid;gap:10px;background:var(--panel);border:1px solid var(--line);padding:10px 12px;font-family:var(--f-ui);font-size:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.lbl{color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-size:10px;display:block;margin-bottom:3px}
+.hearts{display:flex;gap:2px;flex-wrap:wrap;max-width:220px}
+.heart{width:10px;height:9px;background:var(--blood);clip-path:polygon(0 20%,20% 0,40% 0,50% 20%,60% 0,80% 0,100% 20%,100% 50%,50% 100%,0 50%)}
+.heart.empty{background:#3a2a2e}
+.stat{font-variant-numeric:tabular-nums}
+.badge{display:inline-flex;gap:4px;align-items:baseline;background:var(--panel-2);border:1px solid var(--line);padding:2px 8px;border-radius:2px}
+.badge b{font-family:var(--f-display);font-size:15px;font-weight:600}
+.badge.on{border-color:var(--gold);color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+@media (max-width:560px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.stat-box{background:var(--panel-2);border:1px solid var(--line);padding:4px 6px;text-align:center;font-variant-numeric:tabular-nums}
+.stat-box .k{display:block;color:var(--muted);font-size:10px;letter-spacing:.1em}
+.stat-box .v{font-family:var(--f-display);font-size:16px}
+.stat-box .m{color:var(--ember);font-size:11px;margin-left:3px}
+.stat-box.hit{border-color:var(--ember)}
+.chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px}
+.chips li{background:var(--panel-2);border:1px solid var(--line);padding:1px 7px;border-radius:2px}
+.chips li.lit{border-color:var(--ember);color:var(--ember)}
+.chips li.held{border-color:var(--frost);color:var(--frost)}
+.chips li.cond{border-color:#6a3a8a;color:#d8b0ff}
+.chips li.skill{color:var(--muted)}
+.chips li.skill.pro{color:var(--ink);border-color:#4a4270}
+.party{display:flex;flex-wrap:wrap;gap:8px}
+.mate{display:flex;gap:8px;align-items:center;background:var(--panel-2);border:1px solid var(--line);padding:4px 8px 4px 4px;min-width:0}
+.mate img{width:36px;height:36px;image-rendering:pixelated;background:#0b0916;border:1px solid var(--line)}
+.mate .nm{font-family:var(--f-display);font-size:14px}
+.mate .sub{color:var(--muted);font-size:11px}
+.journal{background:var(--panel);border:1px solid var(--line);padding:14px 16px;height:min(56vh,480px);overflow-y:auto;display:grid;gap:12px;align-content:start;min-width:0}
+@media (min-width:940px){.journal{height:calc(100vh - 260px);min-height:320px;max-height:640px}}
+.entry{max-width:65ch;min-width:0;overflow-wrap:anywhere}
+.entry.you{font-family:var(--f-ui);font-size:13px;color:var(--frost)}
+.entry.you::before{content:"> "}
+.entry.sys{font-family:var(--f-ui);font-size:12px;color:var(--muted)}
+.entry.thinking{color:var(--muted);font-style:italic}
+.entry .roll{display:inline-block;font-family:var(--f-ui);font-size:11px;color:var(--muted);border:1px solid var(--line);padding:0 6px;margin-bottom:4px}
+.entry .roll.ok{color:var(--moss);border-color:#3f5530}.entry .roll.fail{color:var(--blood);border-color:#5a2a25}
+.entry .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.entry .tag{font-family:var(--f-ui);font-size:11px;color:var(--muted);border:1px dashed var(--line);padding:0 6px}
+.entry .tag.good{color:var(--gold);border-color:#5a4a20}
+.say{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:start;max-width:65ch}
+.say img{width:40px;height:40px;image-rendering:pixelated;background:#0b0916;border:1px solid var(--line)}
+.say .who{font-family:var(--f-display);font-size:14px;color:var(--gold)}
+.say .txt{font-style:italic}
+.say .act{font-family:var(--f-ui);font-size:11px;color:var(--muted);margin:2px 0}
+.entry.ooc{font-family:var(--f-ui);font-size:13px;color:#cfe3ff;border:1px dashed #3a4a70;padding:8px 10px;background:#10142a}
+.entry.ooc .who{font-family:var(--f-display);color:var(--frost);font-size:13px;margin-bottom:4px}
+.entry.combat{font-family:var(--f-ui);font-size:12px;color:#d8b0ff;border-left:2px solid #4a2a6a;padding-left:10px;display:grid;gap:2px}
+form{display:flex;gap:8px}
+#cmd{flex:1;min-width:0;background:#0a090c;color:var(--ink);border:1px solid var(--line);padding:10px 12px;font-family:var(--f-ui);font-size:14px;border-radius:2px}
+#cmd::placeholder{color:#6b6170}
+.go{background:var(--ember);color:#1b1006;border:0;padding:0 16px;font-family:var(--f-display);font-size:15px;cursor:pointer;border-radius:2px}
+.go:disabled{opacity:.5;cursor:wait}
+.mode{font-family:var(--f-ui);font-size:11px;color:var(--muted)}
+.mode.off{color:var(--ember)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Пещера <span>Серого Зуба</span></h1>
+    <div class="tools">
+      <label for="tier">Мастер
+        <select id="tier"><option value="quick">быстрый</option><option value="default">вдумчивый</option></select>
+      </label>
+      <button class="btn" id="sound" type="button" aria-pressed="false">Звук: выкл</button>
+      <button class="btn" id="music" type="button" aria-pressed="false">Музыка: выкл</button>
+      <button class="btn" id="restart" type="button">Новая игра</button>
+    </div>
+  </header>
+  <div class="game">
+    <div class="left">
+      <div class="view"><canvas id="scr" width="240" height="135" aria-label="Вид от первого лица"></canvas><div class="locname" id="locname"></div></div>
+      <div class="sheet">
+        <div class="row">
+          <div><span class="lbl">Здоровье</span><div class="hearts" id="hearts"></div></div>
+          <div><span class="lbl">Класс брони</span><span class="badge"><b id="ac">16</b></span></div>
+          <div><span class="lbl">Мастерство</span><span class="badge"><b>+2</b></span></div>
+          <div><span class="lbl">Вдохновение</span><span class="badge" id="insp"><b>—</b></span></div>
+          <div><span class="lbl">Второе дыхание</span><span class="badge" id="wind"><b>—</b></span></div>
+          <div><span class="lbl">Золото</span><span class="stat" id="gold">0</span></div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div><span class="lbl">Состояния</span><ul class="chips" id="conds"></ul></div>
+        <div><span class="lbl">Сумка</span><ul class="chips" id="inv"></ul></div>
+        <div><span class="lbl">Отряд</span><div class="party" id="party"></div></div>
+        <div><span class="lbl">Навыки воина (жирные — с мастерством)</span><ul class="chips" id="skills"></ul></div>
+      </div>
+      <div class="mode" id="mode">Подключаю мастера…</div>
+    </div>
+    <div class="right">
+      <div class="journal" id="journal" aria-live="polite"></div>
+      <form id="form" autocomplete="off">
+        <input id="cmd" type="text" maxlength="240" placeholder="Что ты делаешь? «Мастер, …» — вопрос ведущему">
+        <button class="go" id="go" type="submit">Сделать</button>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,28 @@
+// Assembles public/index.html from the game sources in src/.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const src = f => fs.readFileSync(path.join(here, 'src', f), 'utf8');
+
+const page = src('a_page.html');
+const game = src('b_core.js') + src('c_render.js').replace('__HANDS__', src('hands.json').trim()) + src('d_audio.js') + src('e_game.js');
+const html = `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+${page.replace('</style>', '</style>\n<style>\n' + src('platform.css') + '</style>').trim()}
+<script>
+${src('platform.js')}
+</script>
+<script>
+${game}
+</script>
+</html>
+`;
+fs.mkdirSync(path.join(here, 'public'), { recursive: true });
+fs.writeFileSync(path.join(here, 'public', 'index.html'), html);
+console.log(`public/index.html: ${(html.length / 1024).toFixed(0)} KB`);
