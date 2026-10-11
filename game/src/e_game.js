@@ -45,7 +45,8 @@ const RULES = `Ты — мастер настольной игры по прав
 НАСЛЕДИЕ: кости погибшего ранее героя (если есть в состоянии) лежат в указанном месте; при осмотре — "legacy_found": true, можно отдать часть его вещей.
 
 ФОРМАТ ОТВЕТА (строго JSON, без текста вокруг):
-{"narration":"...","dialogue":[],"check":null или {"kind":"check|save|attack","skill":"навык или null","ability":"СИЛ|ЛОВ|ТЕЛ|ИНТ|МДР|ХАР","dc":13,"adv":"none|advantage|disadvantage","target":"имя или null"},"hp_delta":0,"gold_delta":0,"add_items":[],"remove_items":[],"torch":null|"lit"|"out","held":"keep","held_left":"keep","move":null,"zone":null,"enemies":[],"party":[],"conditions_add":[],"conditions_remove":[],"exhaustion_delta":0,"inspiration":null,"second_wind":false,"rest":null,"remember":[],"chest_taken":false,"legacy_found":false,"effect":null|"${EFFECTS.join('|')}","game_over":null|"win"|"death"}`;
+{"narration":"...","dialogue":[],"check":null или {"kind":"check|save|attack","skill":"навык или null","ability":"СИЛ|ЛОВ|ТЕЛ|ИНТ|МДР|ХАР","dc":13,"adv":"none|advantage|disadvantage","target":"имя или null"},"hp_delta":0,"gold_delta":0,"add_items":[],"remove_items":[],"torch":null|"lit"|"out","held":"keep","held_left":"keep","move":null,"zone":null,"enemies":[],"party":[],"conditions_add":[],"conditions_remove":[],"exhaustion_delta":0,"inspiration":null,"second_wind":false,"rest":null,"remember":[],"chest_taken":false,"legacy_found":false,"effect":null|"${EFFECTS.join('|')}","game_over":null|"win"|"death"}
+ГЕРОЙ: если в состоянии у игрока есть имя, прошлое и особенность — это его персонаж. Обращайся к нему как к этому герою, пусть мир и персонажи реагируют на его прошлое, а особенность честно влияет на проверки (преимущество, сопротивление и т. п.).`;
 
 const rollBag = () => { const d = n => 1 + Math.floor(Math.random()*n); return { A: d(20), B: d(20), E1: d(20), E2: d(20), d4: d(4), d6: d(6), d6b: d(6), d8: d(8), d8b: d(8), d10: d(10), d12: d(12) }; };
 function buildPrompt(text, bag, ck){
@@ -53,7 +54,7 @@ function buildPrompt(text, bag, ck){
   const st = {
     место: { id: S.place, ...placeInfo(), соседние: [ORDER[idx-1], ORDER[idx+1]].filter(Boolean) },
     существа_здесь: pl.enemies.map(e => ({ ...e, кб: ENEMY_STATS[e.type]?.ac, атака: '+' + (ENEMY_STATS[e.type]?.atk ?? 0), урон: ENEMY_STATS[e.type]?.dmg })),
-    игрок: { hp: S.hp, max_hp: S.maxHp, кб: S.ac, бонус_мастерства: PROF, характеристики: S.stats,
+    игрок: { ...(heroOf() ? { имя: heroOf().name, кто: `${heroOf().race}, ${heroOf().title}, ${heroOf().age} лет`, характер: heroOf().traits, прошлое: heroOf().past, особенность: heroOf().perk, навыки_с_мастерством: heroOf().skills } : {}), hp: S.hp, max_hp: S.maxHp, кб: S.ac, бонус_мастерства: PROF, характеристики: S.stats,
       модификаторы: Object.fromEntries(STATS.map(([k]) => [k, mod(S.stats[k])])),
       бонусы_навыков: Object.fromEntries(SKILLS.map(([n]) => [n, skillBonus(n)])),
       бонусы_спасбросков: Object.fromEntries(STATS.map(([k]) => [k, saveBonus(k)])), бонус_атаки_мечом: attackBonus(),
@@ -172,7 +173,7 @@ function combatRound(check, bag, lines){
       here().enemies.filter(e => !e.hidden && e.state === 'idle').forEach(e => e.state = 'angry');
       if (tgt.state === 'asleep' || tgt.state === 'idle') tgt.state = 'angry';
       if (check.success){
-        const dmg = Math.max(1, bag.d8 + (check.crit ? bag.d8b : 0) + mod(S.stats['СИЛ']));
+        const dmg = Math.max(1, bag.d8 + (check.crit ? bag.d8b : 0) + weaponMod());
         tgt.hp = Math.max(0, tgt.hp - dmg); lines.push(`Твой удар: ${dmg} урона → ${tgt.name}${tgt.hp <= 0 ? ' — повержен' : ` (осталось ${tgt.hp})`}.`);
         if (tgt.hp <= 0) tgt.state = 'dead'; else tgt.state = 'hurt';
         addEffect('strike'); SFX.hit();
@@ -360,7 +361,7 @@ function charPrompt(id, text){
 ${c.bible}
 
 СЕЙЧАС: место — «${placeInfo().name}» (${placeInfo().about}). ${p.joined ? 'Ты идёшь в отряде с игроком.' : p.met ? 'Ты уже знаком с игроком, но не в его отряде.' : 'Ты впервые разговариваешь с этим человеком. Ты был занят: ' + c.firstScene + '.'}
-Твоё отношение к игроку: ${p.approval} (от −10 враждебно до +10 предан). Игрок — воин в кольчуге с длинным мечом${torchLit() ? ' и горящим факелом' : ''}.${ghostHere ? ' Перед вами на лестнице висит Призрак Хранителя в капюшоне.' : ''}${S.combat ? ' Идёт бой!' : ''}
+Твоё отношение к игроку: ${p.approval} (от −10 враждебно до +10 предан). Игрок — ${heroOf() ? `${heroOf().name}, ${heroOf().race}, ${heroOf().title}. ${heroOf().pitch} ${heroOf().rel[id] ? heroOf().rel[id].note : ''} Игрок` : 'воин'} в кольчуге с длинным мечом${torchLit() ? ' и горящим факелом' : ''}.${ghostHere ? ' Перед вами на лестнице висит Призрак Хранителя в капюшоне.' : ''}${S.combat ? ' Идёт бой!' : ''}
 Что недавно происходило:
 ${recent || '(начало)'}
 Ваш разговор до сих пор:
@@ -513,7 +514,8 @@ function renderHud(){
     sub.textContent = `${p.hp > 0 ? p.hp + '/' + c.hp + ' хп' : 'без сознания'} · КБ ${c.ac} · отношение ${fmtMod(p.approval)}`;
     tx.append(nm, sub); el.append(im, tx); party.append(el);
   });
-  const sk = $('skills'); if (!sk.childElementCount) SKILLS.forEach(([n, ab]) => { const li = document.createElement('li'); li.className = 'skill' + (FIGHTER_SKILLS.includes(n) ? ' pro' : ''); li.textContent = `${n} ${fmtMod(skillBonus(n))}`; li.title = ab; sk.append(li); });
+  const hb = $('hero'); if (hb){ const H = heroOf(); hb.textContent = ''; const b = document.createElement('b'); b.textContent = H ? H.name : 'Безымянный воин'; const sp = document.createElement('span'); sp.textContent = H ? ` — ${H.race}, ${H.title}. ${H.perk}` : ' — свой герой, характеристики выпали на костях.'; hb.append(b, sp); }
+  const sk = $('skills'); if (sk.dataset.hero !== String(S.hero)){ sk.textContent = ''; sk.dataset.hero = String(S.hero); } if (!sk.childElementCount) SKILLS.forEach(([n, ab]) => { const li = document.createElement('li'); li.className = 'skill' + (profSkills().includes(n) ? ' pro' : ''); li.textContent = `${n} ${fmtMod(skillBonus(n))}`; li.title = ab; sk.append(li); });
 }
 function renderJournal(){
   const j = $('journal'); j.textContent = '';
@@ -605,19 +607,41 @@ function setMode(){
   if (sample){ m.className = 'mode'; m.textContent = 'Мастер на связи. Пиши что угодно — он бросит кости по правилам 5e и рассчитает последствия.'; $('tier').disabled = false; }
   else { m.className = 'mode off'; m.textContent = 'Мастер недоступен, включён упрощённый режим: работают только простые команды.'; $('tier').disabled = true; }
 }
-function restart(){
-  S = newGame(); parts = []; diceShow = null;
-  const line = STATS.map(([k]) => `${k} ${S.stats[k]}`).join(', ');
-  S.journal.push({ who: 'sys', text: `Новый воин. Кости брошены (4d6, лучшие три): ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` });
+function restart(){ chooseHero(startGame); }
+function startGame(heroId){
+  S = newGame(heroId); parts = []; diceShow = null;
+  const H = heroOf(), line = STATS.map(([k]) => `${k} ${S.stats[k]}`).join(', ');
+  S.journal.push({ who: 'sys', text: H ? `Ты — ${H.name}, ${H.race}, ${H.title}. ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` : `Свой герой. Кости брошены (4d6, лучшие три): ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` });
   if (LEGACY.length) S.journal.push({ who: 'sys', text: `В этом мире уже погибали герои (${LEGACY.length}). Их кости где-то здесь.` });
-  S.journal.push({ who: 'gm', text: INTRO });
+  S.journal.push({ who: 'gm', text: INTRO.replace('Ты воин:', H ? `Ты — ${H.name}:` : 'Ты воин:') + (H ? ' ' + H.intro : '') });
   save(); renderAll();
+}
+/* ---------- hero choice at the start of every game ---------- */
+function chooseHero(done){
+  if (document.querySelector('.hero-back')) return;
+  const back = document.createElement('div'); back.className = 'hero-back';
+  const box = document.createElement('div'); box.className = 'hero-pick'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Выбор героя');
+  const h = document.createElement('h2'); h.textContent = 'Кто идёт в пещеру?'; box.append(h);
+  const opts = [...Object.entries(HEROES), ['custom', { name: 'Свой герой', title: 'случайный воин', race: '', pitch: 'Характеристики выпадут на костях. Без прошлого: историю напишешь сам.', stats: null, skills: FIGHTER_SKILLS }]];
+  opts.forEach(([id, H]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'hero-card';
+    const nm = document.createElement('b'); nm.textContent = H.name;
+    const tt = document.createElement('i'); tt.textContent = [H.race, H.title].filter(Boolean).join(', ');
+    const pt = document.createElement('span'); pt.textContent = H.pitch;
+    const st = document.createElement('small'); st.textContent = H.stats ? STATS.map(([k]) => `${k} ${H.stats[k]}`).join(' · ') : 'СИЛ ? · ЛОВ ? · ТЕЛ ? · ИНТ ? · МДР ? · ХАР ?';
+    const sk = document.createElement('small'); sk.textContent = 'Навыки: ' + H.skills.join(', ');
+    b.append(nm, tt, pt, st, sk);
+    b.addEventListener('click', () => { back.remove(); done(id === 'custom' ? null : id); });
+    box.append(b);
+  });
+  back.append(box); document.body.append(back);
+  box.querySelector('button').focus();
 }
 $('form').addEventListener('submit', e => { e.preventDefault(); act($('cmd').value); });
 $('restart').addEventListener('click', restart);
 $('sound').addEventListener('click', () => setSound(!AU.on));
 $('music').addEventListener('click', () => setMusic(!MU.on));
-if (freshStart) restart(); else renderAll();
+if (freshStart){ renderAll(); restart(); } else renderAll();
 requestAnimationFrame(frame);
 (async () => { try { sample = window.claude ? await window.claude.use('sample') : null; } catch(e){ sample = null; } setMode(); })();
 (async () => { try { DB = window.claude ? await window.claude.use('db') : null; } catch(e){ DB = null; } })();

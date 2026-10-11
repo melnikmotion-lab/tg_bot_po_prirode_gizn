@@ -87,6 +87,18 @@ form{display:flex;gap:8px}
 .go:disabled{opacity:.5;cursor:wait}
 .mode{font-family:var(--f-ui);font-size:11px;color:var(--muted)}
 .mode.off{color:var(--ember)}
+/* Hero choice */
+.hero{font-family:var(--f-body);font-size:14px;color:var(--muted)}
+.hero b{color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:16px}
+.hero-back{position:fixed;inset:0;background:rgba(5,4,12,.96);display:grid;place-items:center;padding:16px;z-index:60;overflow-y:auto}
+.hero-pick{width:min(560px,100%);display:grid;gap:10px}
+.hero-pick h2{font-family:var(--f-display);font-weight:600;color:var(--ember);margin:0 0 4px;font-size:24px}
+.hero-card{display:grid;gap:3px;text-align:left;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit;cursor:pointer}
+.hero-card:hover,.hero-card:focus-visible{border-color:var(--ember);outline:none;background:var(--panel-2)}
+.hero-card b{font-family:var(--f-display);font-weight:600;font-size:18px}
+.hero-card i{color:var(--ember);font-style:normal;font-family:var(--f-ui);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.hero-card span{font-size:15px}
+.hero-card small{color:var(--muted);font-family:var(--f-ui);font-size:11px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -106,6 +118,7 @@ form{display:flex;gap:8px}
     <div class="left">
       <div class="view"><canvas id="scr" width="240" height="135" aria-label="Вид от первого лица"></canvas><div class="locname" id="locname"></div></div>
       <div class="sheet">
+        <div class="hero" id="hero"></div>
         <div class="row">
           <div><span class="lbl">Здоровье</span><div class="hearts" id="hearts"></div></div>
           <div><span class="lbl">Класс брони</span><span class="badge"><b id="ac">16</b></span></div>

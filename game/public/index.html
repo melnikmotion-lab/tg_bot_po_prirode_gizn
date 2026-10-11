@@ -93,6 +93,18 @@ form{display:flex;gap:8px}
 .go:disabled{opacity:.5;cursor:wait}
 .mode{font-family:var(--f-ui);font-size:11px;color:var(--muted)}
 .mode.off{color:var(--ember)}
+/* Hero choice */
+.hero{font-family:var(--f-body);font-size:14px;color:var(--muted)}
+.hero b{color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:16px}
+.hero-back{position:fixed;inset:0;background:rgba(5,4,12,.96);display:grid;place-items:center;padding:16px;z-index:60;overflow-y:auto}
+.hero-pick{width:min(560px,100%);display:grid;gap:10px}
+.hero-pick h2{font-family:var(--f-display);font-weight:600;color:var(--ember);margin:0 0 4px;font-size:24px}
+.hero-card{display:grid;gap:3px;text-align:left;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit;cursor:pointer}
+.hero-card:hover,.hero-card:focus-visible{border-color:var(--ember);outline:none;background:var(--panel-2)}
+.hero-card b{font-family:var(--f-display);font-weight:600;font-size:18px}
+.hero-card i{color:var(--ember);font-style:normal;font-family:var(--f-ui);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.hero-card span{font-size:15px}
+.hero-card small{color:var(--muted);font-family:var(--f-ui);font-size:11px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 <style>
@@ -142,6 +154,7 @@ label[for="tier"]{display:none}
     <div class="left">
       <div class="view"><canvas id="scr" width="240" height="135" aria-label="Вид от первого лица"></canvas><div class="locname" id="locname"></div></div>
       <div class="sheet">
+        <div class="hero" id="hero"></div>
         <div class="row">
           <div><span class="lbl">Здоровье</span><div class="hearts" id="hearts"></div></div>
           <div><span class="lbl">Класс брони</span><span class="badge"><b id="ac">16</b></span></div>
@@ -305,6 +318,51 @@ const SKILLS = [ // [название, характеристика]
 ];
 const FIGHTER_SKILLS = ['Атлетика','Внимательность','Запугивание','Выживание'];
 const SAVE_PROF = ['СИЛ','ТЕЛ'];
+
+/* ---------- ready-made heroes: all fighters with a sword, different pasts and strengths ---------- */
+const HEROES = {
+  bran: {
+    name: 'Бран Кожедуб', title: 'бывший стражник', race: 'человек', age: 34,
+    stats: { 'СИЛ':16, 'ЛОВ':12, 'ТЕЛ':15, 'ИНТ':10, 'МДР':13, 'ХАР':10 },
+    skills: ['Атлетика','Запугивание','Внимательность','Проницательность'],
+    pitch: 'Сильный и упрямый. Десять лет охранял деревню Ясеневый Брод.',
+    traits: 'Прямой, говорит коротко, не терпит вранья. Верит в закон и порядок, но устал от начальства.',
+    past: 'Десять лет был стражником в деревне Ясеневый Брод, ушёл со службы этой весной. Месяц назад именно он отказался идти с юным Иваром в пещеру «за гоблинским золотом» и сказал парню, что тот дурак. Ивар ушёл один и не вернулся. Бран винит себя и пришёл, чтобы узнать, что с ним стало.',
+    perk: 'Стражник: местные жители узнают его и доверяют ему. Гоблины знают таких, как он, и боятся (или ненавидят).',
+    items: ['свисток стражника'],
+    rel: { tina: { approval: 2, note: 'Тина знает Брана: он стражник из её деревни. Она уважает его, но помнит, что он отказался идти с Иваром, и в глубине души злится на него за это.' },
+           skrip: { approval: -2, note: 'Скрип издалека чует стражника: выправка, свисток, взгляд. Он стражников боится и не доверяет им, хотя может переломить себя ради мести Грому.' } },
+    intro: 'Где-то там, внутри, месяц назад пропал Ивар, и в этом есть твоя вина.',
+  },
+  mira: {
+    name: 'Мира Ласточка', title: 'наёмная дуэлянтка', race: 'полуэльфийка', age: 27,
+    stats: { 'СИЛ':12, 'ЛОВ':16, 'ТЕЛ':13, 'ИНТ':11, 'МДР':10, 'ХАР':15 },
+    skills: ['Акробатика','Внимательность','Обман','Скрытность'], finesse: true,
+    pitch: 'Ловкая, хитрая, обаятельная. Фехтует, как танцует, и врёт, не моргнув.',
+    traits: 'Насмешливая, азартная, любит красивые жесты и красивые вещи. Не доверяет никому, но умеет нравиться.',
+    past: 'Наёмница из южных городов, дралась на дуэлях за деньги. Год назад гоблины Серого Зуба ограбили обоз, который она охраняла, и забрали фамильный перстень её матери с гербом-ласточкой. С тех пор её никто не нанимает. Она пришла за перстнем, а золото вождя заберёт заодно.',
+    perk: 'Фехтовальщица: в бою с мечом использует Ловкость вместо Силы (атака и урон). Умеет красиво врать.',
+    items: ['колода крапленых карт'],
+    rel: { tina: { approval: 0, note: 'Тина видит в Мире чужую, хитрую наёмницу и держится настороже, хотя Мира ей отчасти нравится смелостью.' },
+           skrip: { approval: 1, note: 'Скрипу Мира сразу нравится: она блестящая, ловкая и не похожа на стражника. Он видел её перстень с ласточкой в сокровищнице Серого Зуба и может об этом проболтаться за угощение.' } },
+    intro: 'Где-то там, внутри, лежит перстень твоей матери с ласточкой на печатке.',
+  },
+  torgrim: {
+    name: 'Торгрим Пепельный', title: 'старый ветеран', race: 'дварф', age: 112,
+    stats: { 'СИЛ':15, 'ЛОВ':10, 'ТЕЛ':16, 'ИНТ':12, 'МДР':14, 'ХАР':9 },
+    skills: ['Атлетика','Выживание','История','Уход за животными'], poisonResist: true,
+    pitch: 'Крепкий, как скала, и много повидал. Знает старые склепы и не боится яда.',
+    traits: 'Ворчливый, медлительный, упрямый, любит старые истории и хорошее пиво. Ценит честность и мастерство, презирает трусов.',
+    past: 'Дварф-ветеран, сорок лет воевал наёмником. Его дед строил этот склеп для людского лорда, которого здесь похоронили, а гоблины превратили склеп в логово. Торгрим пришёл вернуть честь работы деда и, может быть, найти там дедову кирку.',
+    perk: 'Дварф: преимущество на спасброски от яда, урон от яда вдвое меньше. Знает, как строят склепы (преимущество на проверки Истории и Внимательности про каменную кладку, ловушки в камне и тайные ходы).',
+    items: ['фляга дварфийского пива'],
+    rel: { tina: { approval: 1, note: 'Тине нравится спокойный старый дварф, он кажется надёжным.' },
+           skrip: { approval: -1, note: 'Скрип опасается дварфов: «бородатые» в его рассказах бьют гоблинов молотами. Но любопытство и жадность сильнее страха.' } },
+    intro: 'Где-то там, внутри, склеп, который строил твой дед.',
+  },
+};
+const heroOf = () => (S && S.hero && HEROES[S.hero]) || null;
+const profSkills = () => (heroOf() ? heroOf().skills : FIGHTER_SKILLS);
 const CONDITIONS = {
   poisoned:   { name:'Отравлен',   rule:'помеха на броски атаки и проверки характеристик' },
   frightened: { name:'Испуган',    rule:'помеха на проверки и атаки, пока источник страха виден; нельзя приближаться к нему' },
@@ -373,15 +431,17 @@ function rollStats(){
   while (sum < 68 || st['СИЛ'] < 12);
   return st;
 }
-function newGame(){
-  const stats = rollStats(), maxHp = 10 + mod(stats['ТЕЛ']);
+function newGame(heroId){
+  const H = HEROES[heroId] || null;
+  const stats = H ? { ...H.stats } : rollStats(), maxHp = 10 + mod(stats['ТЕЛ']);
   const places = {}; for (const p of ORDER) places[p] = { enemies: START_ENEMIES[p].map(e => ({ ...e })), visited: p === 'clearing' };
   return {
     stats, hp: maxHp, maxHp, ac: 16, gold: 0, hitDice: 1, secondWind: true, inspiration: false,
-    inventory: ['длинный меч','кольчуга','факел','огниво','верёвка','краюха хлеба'],
+    hero: H ? heroId : null,
+    inventory: ['длинный меч','кольчуга','факел','огниво','верёвка','краюха хлеба', ...(H ? H.items : [])],
     torchLit: false, held: 'длинный меч', left: null, itemArt: {},
     place: 'clearing', places, conditions: [], exhaustion: 0,
-    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval:0, hp:c.hp, alive:true, visible: id === 'tina', healUsed:false, talk:[] }])),
+    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval: (H && H.rel[id] ? H.rel[id].approval : 0), hp:c.hp, alive:true, visible: id === 'tina', healUsed:false, talk:[] }])),
     zones: Object.fromEntries(ORDER.map(p => [p, { i:0, f: { cave:['crystals','roots'], corridor:['web','barrel'] }[p] || [], title:'' }])), turnsHere: 0, lastBanter: -9, combat: false,
     chronicle: [], history: [], journal: [], turn: 0, over: null, chestTaken: false, legacyFound: false,
   };
@@ -390,7 +450,7 @@ const INTRO = 'Закат. Ты стоишь на поляне перед чёр
 let S;
 try { const raw = localStorage.getItem(SAVE_KEY); S = raw ? JSON.parse(raw) : null; } catch(e){ S = null; }
 const freshStart = !S || !S.places;
-if (freshStart) S = newGame();
+if (freshStart) S = newGame('bran');
 function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch(e){} }
 let LEGACY = [];
 try { LEGACY = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]'); } catch(e){ LEGACY = []; }
@@ -402,9 +462,11 @@ const hasItem = re => S.inventory.some(i => re.test(i));
 const hasCond = id => S.conditions.some(c => c.id === id);
 const torchLit = () => S.torchLit && !!S.left && /факел/i.test(S.left) && hasItem(/факел/i);
 const effLight = () => torchLit() ? 'torch' : placeInfo().light;
-const skillBonus = name => { const sk = SKILLS.find(s => s[0] === name); if (!sk) return null; return mod(S.stats[sk[1]]) + (FIGHTER_SKILLS.includes(name) ? PROF : 0); };
+const skillBonus = name => { const sk = SKILLS.find(s => s[0] === name); if (!sk) return null; return mod(S.stats[sk[1]]) + (profSkills().includes(name) ? PROF : 0); };
 const saveBonus = ab => mod(S.stats[ab]) + (SAVE_PROF.includes(ab) ? PROF : 0);
-const attackBonus = () => mod(S.stats['СИЛ']) + PROF;
+// Swordsmen with finesse fight with Dexterity when it is better.
+const weaponMod = () => (heroOf() && heroOf().finesse) ? Math.max(mod(S.stats['СИЛ']), mod(S.stats['ЛОВ'])) : mod(S.stats['СИЛ']);
+const attackBonus = () => weaponMod() + PROF;
 // disadvantage forced by conditions (5e)
 function forcedDisadvantage(kind, ability){
   const why = [];
@@ -1033,7 +1095,8 @@ const RULES = `Ты — мастер настольной игры по прав
 НАСЛЕДИЕ: кости погибшего ранее героя (если есть в состоянии) лежат в указанном месте; при осмотре — "legacy_found": true, можно отдать часть его вещей.
 
 ФОРМАТ ОТВЕТА (строго JSON, без текста вокруг):
-{"narration":"...","dialogue":[],"check":null или {"kind":"check|save|attack","skill":"навык или null","ability":"СИЛ|ЛОВ|ТЕЛ|ИНТ|МДР|ХАР","dc":13,"adv":"none|advantage|disadvantage","target":"имя или null"},"hp_delta":0,"gold_delta":0,"add_items":[],"remove_items":[],"torch":null|"lit"|"out","held":"keep","held_left":"keep","move":null,"zone":null,"enemies":[],"party":[],"conditions_add":[],"conditions_remove":[],"exhaustion_delta":0,"inspiration":null,"second_wind":false,"rest":null,"remember":[],"chest_taken":false,"legacy_found":false,"effect":null|"${EFFECTS.join('|')}","game_over":null|"win"|"death"}`;
+{"narration":"...","dialogue":[],"check":null или {"kind":"check|save|attack","skill":"навык или null","ability":"СИЛ|ЛОВ|ТЕЛ|ИНТ|МДР|ХАР","dc":13,"adv":"none|advantage|disadvantage","target":"имя или null"},"hp_delta":0,"gold_delta":0,"add_items":[],"remove_items":[],"torch":null|"lit"|"out","held":"keep","held_left":"keep","move":null,"zone":null,"enemies":[],"party":[],"conditions_add":[],"conditions_remove":[],"exhaustion_delta":0,"inspiration":null,"second_wind":false,"rest":null,"remember":[],"chest_taken":false,"legacy_found":false,"effect":null|"${EFFECTS.join('|')}","game_over":null|"win"|"death"}
+ГЕРОЙ: если в состоянии у игрока есть имя, прошлое и особенность — это его персонаж. Обращайся к нему как к этому герою, пусть мир и персонажи реагируют на его прошлое, а особенность честно влияет на проверки (преимущество, сопротивление и т. п.).`;
 
 const rollBag = () => { const d = n => 1 + Math.floor(Math.random()*n); return { A: d(20), B: d(20), E1: d(20), E2: d(20), d4: d(4), d6: d(6), d6b: d(6), d8: d(8), d8b: d(8), d10: d(10), d12: d(12) }; };
 function buildPrompt(text, bag, ck){
@@ -1041,7 +1104,7 @@ function buildPrompt(text, bag, ck){
   const st = {
     место: { id: S.place, ...placeInfo(), соседние: [ORDER[idx-1], ORDER[idx+1]].filter(Boolean) },
     существа_здесь: pl.enemies.map(e => ({ ...e, кб: ENEMY_STATS[e.type]?.ac, атака: '+' + (ENEMY_STATS[e.type]?.atk ?? 0), урон: ENEMY_STATS[e.type]?.dmg })),
-    игрок: { hp: S.hp, max_hp: S.maxHp, кб: S.ac, бонус_мастерства: PROF, характеристики: S.stats,
+    игрок: { ...(heroOf() ? { имя: heroOf().name, кто: `${heroOf().race}, ${heroOf().title}, ${heroOf().age} лет`, характер: heroOf().traits, прошлое: heroOf().past, особенность: heroOf().perk, навыки_с_мастерством: heroOf().skills } : {}), hp: S.hp, max_hp: S.maxHp, кб: S.ac, бонус_мастерства: PROF, характеристики: S.stats,
       модификаторы: Object.fromEntries(STATS.map(([k]) => [k, mod(S.stats[k])])),
       бонусы_навыков: Object.fromEntries(SKILLS.map(([n]) => [n, skillBonus(n)])),
       бонусы_спасбросков: Object.fromEntries(STATS.map(([k]) => [k, saveBonus(k)])), бонус_атаки_мечом: attackBonus(),
@@ -1160,7 +1223,7 @@ function combatRound(check, bag, lines){
       here().enemies.filter(e => !e.hidden && e.state === 'idle').forEach(e => e.state = 'angry');
       if (tgt.state === 'asleep' || tgt.state === 'idle') tgt.state = 'angry';
       if (check.success){
-        const dmg = Math.max(1, bag.d8 + (check.crit ? bag.d8b : 0) + mod(S.stats['СИЛ']));
+        const dmg = Math.max(1, bag.d8 + (check.crit ? bag.d8b : 0) + weaponMod());
         tgt.hp = Math.max(0, tgt.hp - dmg); lines.push(`Твой удар: ${dmg} урона → ${tgt.name}${tgt.hp <= 0 ? ' — повержен' : ` (осталось ${tgt.hp})`}.`);
         if (tgt.hp <= 0) tgt.state = 'dead'; else tgt.state = 'hurt';
         addEffect('strike'); SFX.hit();
@@ -1348,7 +1411,7 @@ function charPrompt(id, text){
 ${c.bible}
 
 СЕЙЧАС: место — «${placeInfo().name}» (${placeInfo().about}). ${p.joined ? 'Ты идёшь в отряде с игроком.' : p.met ? 'Ты уже знаком с игроком, но не в его отряде.' : 'Ты впервые разговариваешь с этим человеком. Ты был занят: ' + c.firstScene + '.'}
-Твоё отношение к игроку: ${p.approval} (от −10 враждебно до +10 предан). Игрок — воин в кольчуге с длинным мечом${torchLit() ? ' и горящим факелом' : ''}.${ghostHere ? ' Перед вами на лестнице висит Призрак Хранителя в капюшоне.' : ''}${S.combat ? ' Идёт бой!' : ''}
+Твоё отношение к игроку: ${p.approval} (от −10 враждебно до +10 предан). Игрок — ${heroOf() ? `${heroOf().name}, ${heroOf().race}, ${heroOf().title}. ${heroOf().pitch} ${heroOf().rel[id] ? heroOf().rel[id].note : ''} Игрок` : 'воин'} в кольчуге с длинным мечом${torchLit() ? ' и горящим факелом' : ''}.${ghostHere ? ' Перед вами на лестнице висит Призрак Хранителя в капюшоне.' : ''}${S.combat ? ' Идёт бой!' : ''}
 Что недавно происходило:
 ${recent || '(начало)'}
 Ваш разговор до сих пор:
@@ -1501,7 +1564,8 @@ function renderHud(){
     sub.textContent = `${p.hp > 0 ? p.hp + '/' + c.hp + ' хп' : 'без сознания'} · КБ ${c.ac} · отношение ${fmtMod(p.approval)}`;
     tx.append(nm, sub); el.append(im, tx); party.append(el);
   });
-  const sk = $('skills'); if (!sk.childElementCount) SKILLS.forEach(([n, ab]) => { const li = document.createElement('li'); li.className = 'skill' + (FIGHTER_SKILLS.includes(n) ? ' pro' : ''); li.textContent = `${n} ${fmtMod(skillBonus(n))}`; li.title = ab; sk.append(li); });
+  const hb = $('hero'); if (hb){ const H = heroOf(); hb.textContent = ''; const b = document.createElement('b'); b.textContent = H ? H.name : 'Безымянный воин'; const sp = document.createElement('span'); sp.textContent = H ? ` — ${H.race}, ${H.title}. ${H.perk}` : ' — свой герой, характеристики выпали на костях.'; hb.append(b, sp); }
+  const sk = $('skills'); if (sk.dataset.hero !== String(S.hero)){ sk.textContent = ''; sk.dataset.hero = String(S.hero); } if (!sk.childElementCount) SKILLS.forEach(([n, ab]) => { const li = document.createElement('li'); li.className = 'skill' + (profSkills().includes(n) ? ' pro' : ''); li.textContent = `${n} ${fmtMod(skillBonus(n))}`; li.title = ab; sk.append(li); });
 }
 function renderJournal(){
   const j = $('journal'); j.textContent = '';
@@ -1593,19 +1657,41 @@ function setMode(){
   if (sample){ m.className = 'mode'; m.textContent = 'Мастер на связи. Пиши что угодно — он бросит кости по правилам 5e и рассчитает последствия.'; $('tier').disabled = false; }
   else { m.className = 'mode off'; m.textContent = 'Мастер недоступен, включён упрощённый режим: работают только простые команды.'; $('tier').disabled = true; }
 }
-function restart(){
-  S = newGame(); parts = []; diceShow = null;
-  const line = STATS.map(([k]) => `${k} ${S.stats[k]}`).join(', ');
-  S.journal.push({ who: 'sys', text: `Новый воин. Кости брошены (4d6, лучшие три): ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` });
+function restart(){ chooseHero(startGame); }
+function startGame(heroId){
+  S = newGame(heroId); parts = []; diceShow = null;
+  const H = heroOf(), line = STATS.map(([k]) => `${k} ${S.stats[k]}`).join(', ');
+  S.journal.push({ who: 'sys', text: H ? `Ты — ${H.name}, ${H.race}, ${H.title}. ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` : `Свой герой. Кости брошены (4d6, лучшие три): ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` });
   if (LEGACY.length) S.journal.push({ who: 'sys', text: `В этом мире уже погибали герои (${LEGACY.length}). Их кости где-то здесь.` });
-  S.journal.push({ who: 'gm', text: INTRO });
+  S.journal.push({ who: 'gm', text: INTRO.replace('Ты воин:', H ? `Ты — ${H.name}:` : 'Ты воин:') + (H ? ' ' + H.intro : '') });
   save(); renderAll();
+}
+/* ---------- hero choice at the start of every game ---------- */
+function chooseHero(done){
+  if (document.querySelector('.hero-back')) return;
+  const back = document.createElement('div'); back.className = 'hero-back';
+  const box = document.createElement('div'); box.className = 'hero-pick'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Выбор героя');
+  const h = document.createElement('h2'); h.textContent = 'Кто идёт в пещеру?'; box.append(h);
+  const opts = [...Object.entries(HEROES), ['custom', { name: 'Свой герой', title: 'случайный воин', race: '', pitch: 'Характеристики выпадут на костях. Без прошлого: историю напишешь сам.', stats: null, skills: FIGHTER_SKILLS }]];
+  opts.forEach(([id, H]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'hero-card';
+    const nm = document.createElement('b'); nm.textContent = H.name;
+    const tt = document.createElement('i'); tt.textContent = [H.race, H.title].filter(Boolean).join(', ');
+    const pt = document.createElement('span'); pt.textContent = H.pitch;
+    const st = document.createElement('small'); st.textContent = H.stats ? STATS.map(([k]) => `${k} ${H.stats[k]}`).join(' · ') : 'СИЛ ? · ЛОВ ? · ТЕЛ ? · ИНТ ? · МДР ? · ХАР ?';
+    const sk = document.createElement('small'); sk.textContent = 'Навыки: ' + H.skills.join(', ');
+    b.append(nm, tt, pt, st, sk);
+    b.addEventListener('click', () => { back.remove(); done(id === 'custom' ? null : id); });
+    box.append(b);
+  });
+  back.append(box); document.body.append(back);
+  box.querySelector('button').focus();
 }
 $('form').addEventListener('submit', e => { e.preventDefault(); act($('cmd').value); });
 $('restart').addEventListener('click', restart);
 $('sound').addEventListener('click', () => setSound(!AU.on));
 $('music').addEventListener('click', () => setMusic(!MU.on));
-if (freshStart) restart(); else renderAll();
+if (freshStart){ renderAll(); restart(); } else renderAll();
 requestAnimationFrame(frame);
 (async () => { try { sample = window.claude ? await window.claude.use('sample') : null; } catch(e){ sample = null; } setMode(); })();
 (async () => { try { DB = window.claude ? await window.claude.use('db') : null; } catch(e){ DB = null; } })();

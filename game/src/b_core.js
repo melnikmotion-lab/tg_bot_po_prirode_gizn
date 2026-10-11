@@ -20,6 +20,51 @@ const SKILLS = [ // [название, характеристика]
 ];
 const FIGHTER_SKILLS = ['Атлетика','Внимательность','Запугивание','Выживание'];
 const SAVE_PROF = ['СИЛ','ТЕЛ'];
+
+/* ---------- ready-made heroes: all fighters with a sword, different pasts and strengths ---------- */
+const HEROES = {
+  bran: {
+    name: 'Бран Кожедуб', title: 'бывший стражник', race: 'человек', age: 34,
+    stats: { 'СИЛ':16, 'ЛОВ':12, 'ТЕЛ':15, 'ИНТ':10, 'МДР':13, 'ХАР':10 },
+    skills: ['Атлетика','Запугивание','Внимательность','Проницательность'],
+    pitch: 'Сильный и упрямый. Десять лет охранял деревню Ясеневый Брод.',
+    traits: 'Прямой, говорит коротко, не терпит вранья. Верит в закон и порядок, но устал от начальства.',
+    past: 'Десять лет был стражником в деревне Ясеневый Брод, ушёл со службы этой весной. Месяц назад именно он отказался идти с юным Иваром в пещеру «за гоблинским золотом» и сказал парню, что тот дурак. Ивар ушёл один и не вернулся. Бран винит себя и пришёл, чтобы узнать, что с ним стало.',
+    perk: 'Стражник: местные жители узнают его и доверяют ему. Гоблины знают таких, как он, и боятся (или ненавидят).',
+    items: ['свисток стражника'],
+    rel: { tina: { approval: 2, note: 'Тина знает Брана: он стражник из её деревни. Она уважает его, но помнит, что он отказался идти с Иваром, и в глубине души злится на него за это.' },
+           skrip: { approval: -2, note: 'Скрип издалека чует стражника: выправка, свисток, взгляд. Он стражников боится и не доверяет им, хотя может переломить себя ради мести Грому.' } },
+    intro: 'Где-то там, внутри, месяц назад пропал Ивар, и в этом есть твоя вина.',
+  },
+  mira: {
+    name: 'Мира Ласточка', title: 'наёмная дуэлянтка', race: 'полуэльфийка', age: 27,
+    stats: { 'СИЛ':12, 'ЛОВ':16, 'ТЕЛ':13, 'ИНТ':11, 'МДР':10, 'ХАР':15 },
+    skills: ['Акробатика','Внимательность','Обман','Скрытность'], finesse: true,
+    pitch: 'Ловкая, хитрая, обаятельная. Фехтует, как танцует, и врёт, не моргнув.',
+    traits: 'Насмешливая, азартная, любит красивые жесты и красивые вещи. Не доверяет никому, но умеет нравиться.',
+    past: 'Наёмница из южных городов, дралась на дуэлях за деньги. Год назад гоблины Серого Зуба ограбили обоз, который она охраняла, и забрали фамильный перстень её матери с гербом-ласточкой. С тех пор её никто не нанимает. Она пришла за перстнем, а золото вождя заберёт заодно.',
+    perk: 'Фехтовальщица: в бою с мечом использует Ловкость вместо Силы (атака и урон). Умеет красиво врать.',
+    items: ['колода крапленых карт'],
+    rel: { tina: { approval: 0, note: 'Тина видит в Мире чужую, хитрую наёмницу и держится настороже, хотя Мира ей отчасти нравится смелостью.' },
+           skrip: { approval: 1, note: 'Скрипу Мира сразу нравится: она блестящая, ловкая и не похожа на стражника. Он видел её перстень с ласточкой в сокровищнице Серого Зуба и может об этом проболтаться за угощение.' } },
+    intro: 'Где-то там, внутри, лежит перстень твоей матери с ласточкой на печатке.',
+  },
+  torgrim: {
+    name: 'Торгрим Пепельный', title: 'старый ветеран', race: 'дварф', age: 112,
+    stats: { 'СИЛ':15, 'ЛОВ':10, 'ТЕЛ':16, 'ИНТ':12, 'МДР':14, 'ХАР':9 },
+    skills: ['Атлетика','Выживание','История','Уход за животными'], poisonResist: true,
+    pitch: 'Крепкий, как скала, и много повидал. Знает старые склепы и не боится яда.',
+    traits: 'Ворчливый, медлительный, упрямый, любит старые истории и хорошее пиво. Ценит честность и мастерство, презирает трусов.',
+    past: 'Дварф-ветеран, сорок лет воевал наёмником. Его дед строил этот склеп для людского лорда, которого здесь похоронили, а гоблины превратили склеп в логово. Торгрим пришёл вернуть честь работы деда и, может быть, найти там дедову кирку.',
+    perk: 'Дварф: преимущество на спасброски от яда, урон от яда вдвое меньше. Знает, как строят склепы (преимущество на проверки Истории и Внимательности про каменную кладку, ловушки в камне и тайные ходы).',
+    items: ['фляга дварфийского пива'],
+    rel: { tina: { approval: 1, note: 'Тине нравится спокойный старый дварф, он кажется надёжным.' },
+           skrip: { approval: -1, note: 'Скрип опасается дварфов: «бородатые» в его рассказах бьют гоблинов молотами. Но любопытство и жадность сильнее страха.' } },
+    intro: 'Где-то там, внутри, склеп, который строил твой дед.',
+  },
+};
+const heroOf = () => (S && S.hero && HEROES[S.hero]) || null;
+const profSkills = () => (heroOf() ? heroOf().skills : FIGHTER_SKILLS);
 const CONDITIONS = {
   poisoned:   { name:'Отравлен',   rule:'помеха на броски атаки и проверки характеристик' },
   frightened: { name:'Испуган',    rule:'помеха на проверки и атаки, пока источник страха виден; нельзя приближаться к нему' },
@@ -88,15 +133,17 @@ function rollStats(){
   while (sum < 68 || st['СИЛ'] < 12);
   return st;
 }
-function newGame(){
-  const stats = rollStats(), maxHp = 10 + mod(stats['ТЕЛ']);
+function newGame(heroId){
+  const H = HEROES[heroId] || null;
+  const stats = H ? { ...H.stats } : rollStats(), maxHp = 10 + mod(stats['ТЕЛ']);
   const places = {}; for (const p of ORDER) places[p] = { enemies: START_ENEMIES[p].map(e => ({ ...e })), visited: p === 'clearing' };
   return {
     stats, hp: maxHp, maxHp, ac: 16, gold: 0, hitDice: 1, secondWind: true, inspiration: false,
-    inventory: ['длинный меч','кольчуга','факел','огниво','верёвка','краюха хлеба'],
+    hero: H ? heroId : null,
+    inventory: ['длинный меч','кольчуга','факел','огниво','верёвка','краюха хлеба', ...(H ? H.items : [])],
     torchLit: false, held: 'длинный меч', left: null, itemArt: {},
     place: 'clearing', places, conditions: [], exhaustion: 0,
-    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval:0, hp:c.hp, alive:true, visible: id === 'tina', healUsed:false, talk:[] }])),
+    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval: (H && H.rel[id] ? H.rel[id].approval : 0), hp:c.hp, alive:true, visible: id === 'tina', healUsed:false, talk:[] }])),
     zones: Object.fromEntries(ORDER.map(p => [p, { i:0, f: { cave:['crystals','roots'], corridor:['web','barrel'] }[p] || [], title:'' }])), turnsHere: 0, lastBanter: -9, combat: false,
     chronicle: [], history: [], journal: [], turn: 0, over: null, chestTaken: false, legacyFound: false,
   };
@@ -105,7 +152,7 @@ const INTRO = 'Закат. Ты стоишь на поляне перед чёр
 let S;
 try { const raw = localStorage.getItem(SAVE_KEY); S = raw ? JSON.parse(raw) : null; } catch(e){ S = null; }
 const freshStart = !S || !S.places;
-if (freshStart) S = newGame();
+if (freshStart) S = newGame('bran');
 function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch(e){} }
 let LEGACY = [];
 try { LEGACY = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]'); } catch(e){ LEGACY = []; }
@@ -117,9 +164,11 @@ const hasItem = re => S.inventory.some(i => re.test(i));
 const hasCond = id => S.conditions.some(c => c.id === id);
 const torchLit = () => S.torchLit && !!S.left && /факел/i.test(S.left) && hasItem(/факел/i);
 const effLight = () => torchLit() ? 'torch' : placeInfo().light;
-const skillBonus = name => { const sk = SKILLS.find(s => s[0] === name); if (!sk) return null; return mod(S.stats[sk[1]]) + (FIGHTER_SKILLS.includes(name) ? PROF : 0); };
+const skillBonus = name => { const sk = SKILLS.find(s => s[0] === name); if (!sk) return null; return mod(S.stats[sk[1]]) + (profSkills().includes(name) ? PROF : 0); };
 const saveBonus = ab => mod(S.stats[ab]) + (SAVE_PROF.includes(ab) ? PROF : 0);
-const attackBonus = () => mod(S.stats['СИЛ']) + PROF;
+// Swordsmen with finesse fight with Dexterity when it is better.
+const weaponMod = () => (heroOf() && heroOf().finesse) ? Math.max(mod(S.stats['СИЛ']), mod(S.stats['ЛОВ'])) : mod(S.stats['СИЛ']);
+const attackBonus = () => weaponMod() + PROF;
 // disadvantage forced by conditions (5e)
 function forcedDisadvantage(kind, ability){
   const why = [];
