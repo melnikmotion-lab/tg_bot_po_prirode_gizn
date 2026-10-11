@@ -93,6 +93,8 @@ form{display:flex;gap:8px}
 .go:disabled{opacity:.5;cursor:wait}
 .mode{font-family:var(--f-ui);font-size:11px;color:var(--muted)}
 .mode.off{color:var(--ember)}
+.legal{font-family:var(--f-ui);font-size:10px;line-height:1.5;color:var(--muted);opacity:.7;margin-top:8px}
+.legal a{color:inherit}
 /* Hero choice */
 .hero{font-family:var(--f-body);font-size:14px;color:var(--muted)}
 .hero b{color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:16px}
@@ -179,6 +181,7 @@ label[for="tier"]{display:none}
       </form>
     </div>
   </div>
+  <footer class="legal">This work includes material taken from the System Reference Document 5.1 (“SRD 5.1”) by Wizards of the Coast LLC, available at <a href="https://dnd.wizards.com/resources/systems-reference-document" target="_blank" rel="noopener">dnd.wizards.com/resources/systems-reference-document</a>. The SRD 5.1 is licensed under the <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener">Creative Commons Attribution 4.0 International License</a>. Игра не связана с Wizards of the Coast и не одобрена ими.</footer>
 </div>
 <script>
 /* Platform layer: connects the game to our server (AI master, turn limits, Stars purchases)
@@ -305,7 +308,7 @@ ctx.imageSmoothingEnabled = false;
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'grey-fang-save-v8', LEGACY_KEY = 'grey-fang-legacy-v1';
 
-/* ---------- D&D 5e: fighter, level 1 ---------- */
+/* ---------- 5th edition rules (SRD 5.1): fighter, level 1 ---------- */
 const STATS = [['СИЛ','Сила'],['ЛОВ','Ловкость'],['ТЕЛ','Телосложение'],['ИНТ','Интеллект'],['МДР','Мудрость'],['ХАР','Харизма']];
 const mod = v => Math.floor((v - 10)/2);
 const fmtMod = m => (m >= 0 ? '+' : '') + m;
@@ -1051,7 +1054,7 @@ function setMusic(on){
 
 /* =====================  GAME MASTER (Claude)  ===================== */
 let sample = null, busy = false;
-const RULES = `Ты — мастер настольной игры по правилам D&D 5e в текстовой игре «Пещера Серого Зуба» (тёмное фэнтези). Игрок — воин 1 уровня без магии. Он пишет действия свободным текстом; ты решаешь, что происходит, и отвечаешь ТОЛЬКО одним JSON-объектом.
+const RULES = `Ты — мастер настольной игры по правилам 5-й редакции (SRD 5.1) в текстовой игре «Пещера Серого Зуба» (тёмное фэнтези). Игрок — воин 1 уровня без магии. Он пишет действия свободным текстом; ты решаешь, что происходит, и отвечаешь ТОЛЬКО одним JSON-объектом.
 
 ДУХ ИГРЫ
 - Реагируй на любое действие, даже шуточное: у всего есть последствия. Мир живой: существа заняты своими делами, а не стоят и ждут игрока.
@@ -1096,7 +1099,8 @@ const RULES = `Ты — мастер настольной игры по прав
 
 ФОРМАТ ОТВЕТА (строго JSON, без текста вокруг):
 {"narration":"...","dialogue":[],"check":null или {"kind":"check|save|attack","skill":"навык или null","ability":"СИЛ|ЛОВ|ТЕЛ|ИНТ|МДР|ХАР","dc":13,"adv":"none|advantage|disadvantage","target":"имя или null"},"hp_delta":0,"gold_delta":0,"add_items":[],"remove_items":[],"torch":null|"lit"|"out","held":"keep","held_left":"keep","move":null,"zone":null,"enemies":[],"party":[],"conditions_add":[],"conditions_remove":[],"exhaustion_delta":0,"inspiration":null,"second_wind":false,"rest":null,"remember":[],"chest_taken":false,"legacy_found":false,"effect":null|"${EFFECTS.join('|')}","game_over":null|"win"|"death"}
-ГЕРОЙ: если в состоянии у игрока есть имя, прошлое и особенность — это его персонаж. Обращайся к нему как к этому герою, пусть мир и персонажи реагируют на его прошлое, а особенность честно влияет на проверки (преимущество, сопротивление и т. п.).`;
+ГЕРОЙ: если в состоянии у игрока есть имя, прошлое и особенность — это его персонаж. Обращайся к нему как к этому герою, пусть мир и персонажи реагируют на его прошлое, а особенность честно влияет на проверки (преимущество, сопротивление и т. п.).
+НАЗВАНИЯ: не упоминай в тексте чужие бренды и франшизы (названия игр, аниме, фильмов, книг, их персонажей и фирменные фразы). Если игрок приносит что-то оттуда, подыгрывай своими словами и намёками, не копируя оригинал.`;
 
 const rollBag = () => { const d = n => 1 + Math.floor(Math.random()*n); return { A: d(20), B: d(20), E1: d(20), E2: d(20), d4: d(4), d6: d(6), d6b: d(6), d8: d(8), d8b: d(8), d10: d(10), d12: d(12) }; };
 function buildPrompt(text, bag, ck){
@@ -1379,7 +1383,7 @@ function askPrompt(q, bag, ck){
   return `${base}
 
 СЕЙЧАС ИГРОК НЕ ДЕЙСТВУЕТ, А ЗАДАЁТ ВОПРОС ТЕБЕ КАК ВЕДУЩЕМУ (вне игры, время не идёт, враги не ходят).
-Отвечай как опытный мастер D&D за столом: честно и по делу, только то, что персонаж может видеть, знать или понять отсюда. Можешь объяснить, как сработают правила и какие исходы возможны в общих чертах (например, кого заденет ловушка, если её задействовать). Не раскрывай скрытых врагов и чужие тайны без успешной проверки. Если ответ требует внимательности или знаний (Внимательность, Анализ, Природа, Магия, История, Проницательность…), ответь ТОЛЬКО {"pending":true,"check":{"kind":"check","skill":"...","ability":"...","dc":12}} — игра бросит кости и пришлёт итог.${ck ? `\nИТОГ ПРОВЕРКИ: ${checkLine(ck)}. Ответь с учётом этого итога.` : ''}
+Отвечай как опытный мастер настольной ролевой игры за столом: честно и по делу, только то, что персонаж может видеть, знать или понять отсюда. Можешь объяснить, как сработают правила и какие исходы возможны в общих чертах (например, кого заденет ловушка, если её задействовать). Не раскрывай скрытых врагов и чужие тайны без успешной проверки. Если ответ требует внимательности или знаний (Внимательность, Анализ, Природа, Магия, История, Проницательность…), ответь ТОЛЬКО {"pending":true,"check":{"kind":"check","skill":"...","ability":"...","dc":12}} — игра бросит кости и пришлёт итог.${ck ? `\nИТОГ ПРОВЕРКИ: ${checkLine(ck)}. Ответь с учётом этого итога.` : ''}
 Ответ — JSON: {"answer":"2–5 предложений от лица мастера, можно на «ты»","remember":[]}
 
 ВОПРОС ИГРОКА: «${q}»`;

@@ -7,7 +7,7 @@ ctx.imageSmoothingEnabled = false;
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'grey-fang-save-v8', LEGACY_KEY = 'grey-fang-legacy-v1';
 
-/* ---------- D&D 5e: fighter, level 1 ---------- */
+/* ---------- 5th edition rules (SRD 5.1): fighter, level 1 ---------- */
 const STATS = [['СИЛ','Сила'],['ЛОВ','Ловкость'],['ТЕЛ','Телосложение'],['ИНТ','Интеллект'],['МДР','Мудрость'],['ХАР','Харизма']];
 const mod = v => Math.floor((v - 10)/2);
 const fmtMod = m => (m >= 0 ? '+' : '') + m;
