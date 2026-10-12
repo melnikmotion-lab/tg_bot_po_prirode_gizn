@@ -188,7 +188,10 @@ async function tg(method, payload) {
   return j.result;
 }
 const hookSecret = () => crypto.createHash('sha256').update('hook:' + BOT_TOKEN).digest('hex').slice(0, 48);
-const playButton = () => ({ inline_keyboard: [[{ text: '⚔️ Играть', web_app: { url: PUBLIC_URL + '/' } }]] });
+// A new address on every server start, so Telegram never opens a cached old version of the game.
+const BUILD = Date.now().toString(36);
+const playUrl = () => `${PUBLIC_URL}/?v=${BUILD}`;
+const playButton = () => ({ inline_keyboard: [[{ text: '⚔️ Играть', web_app: { url: playUrl() } }]] });
 
 async function onUpdate(up) {
   if (up.pre_checkout_query) {
@@ -230,7 +233,7 @@ async function setupBot() {
     botName = (await tg('getMe')).username;
     if (!PUBLIC_URL) { console.warn('PUBLIC_URL is not set: cannot register the webhook'); return; }
     await tg('setWebhook', { url: PUBLIC_URL + '/tg/hook', secret_token: hookSecret(), allowed_updates: ['message', 'pre_checkout_query'] });
-    await tg('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Играть', web_app: { url: PUBLIC_URL + '/' } } });
+    await tg('setChatMenuButton', { menu_button: { type: 'web_app', text: 'Играть', web_app: { url: playUrl() } } });
     await tg('setMyCommands', { commands: [{ command: 'start', description: 'Начать игру' }, { command: 'paysupport', description: 'Помощь с оплатой' }] });
     console.log(`bot @${botName} ready, webhook ${PUBLIC_URL}/tg/hook`);
   } catch (e) { console.error('bot setup failed:', e.message); }
