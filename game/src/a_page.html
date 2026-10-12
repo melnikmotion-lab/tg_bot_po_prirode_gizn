@@ -132,6 +132,9 @@ form{display:flex;gap:8px}
 .dice.fumble .d{background:#1a2e6a;border-color:#6aa0ff;box-shadow:0 0 24px #4a7aff}.dice.fumble .t{color:#8ab4ff}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+.bag-ground{display:grid;gap:6px}.bag-ground b{font-family:var(--f-display);font-weight:600;color:var(--muted);font-size:14px}
+.ground-item{display:flex;align-items:center;gap:8px;min-height:44px;padding:4px 10px;background:var(--panel-2);color:var(--ink);border:2px dashed #4a4260;font:600 13px var(--f-ui);text-align:left;cursor:pointer}
+.ground-item .ico{width:32px;height:32px;flex:none}
 /* Hero choice */
 .hero{font-family:var(--f-body);font-size:14px;color:var(--muted)}
 .hero b{color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:16px}
@@ -189,7 +192,7 @@ form{display:flex;gap:8px}
     <div class="right">
       <div class="journal" id="journal" aria-live="polite"></div>
       <div class="acts" id="acts">
-        <button type="button" data-act="attack"><i>⚔</i>Атака</button><button type="button" data-act="dodge"><i>🛡</i>Защита</button><button type="button" data-act="hide"><i>🌑</i>Скрыться</button><button type="button" data-act="talk"><i>💬</i>Говорить</button><button type="button" data-act="gm"><i>❓</i>Мастер</button>
+        <button type="button" data-act="attack"><i>⚔</i>Атака</button><button type="button" data-act="dodge"><i>🛡</i>Уклонение</button><button type="button" data-act="hide"><i>🌑</i>Скрыться</button><button type="button" data-act="talk"><i>💬</i>Говорить</button><button type="button" data-act="gm"><i>❓</i>Мастер</button>
       </div>
       <form id="form" autocomplete="off">
         <input id="cmd" type="text" maxlength="240" placeholder="Опиши, что делаешь…">

@@ -80,7 +80,7 @@ function openBag(){
     list.push(['👁 Осмотреть', () => { info.textContent = describe(item) + inHand; }]);
     if (!WORN.test(item)) list.push(['🗑 Выбросить', () => invAct(`выбрасываю ${item}`, `Ты бросаешь на землю: ${item}.`, () => {
       if (S.held === item) S.held = null; if (S.left === item){ S.left = null; if (/факел/i.test(item)) S.torchLit = false; }
-      S.inventory.splice(S.inventory.indexOf(item), 1); })]);
+      S.inventory.splice(S.inventory.indexOf(item), 1); (here().ground ||= []).push(item); })]);
     list.forEach(([t, fn]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.addEventListener('click', fn); acts.append(b); });
   };
   // Things done with your own bag are instant and free: no master, no dice. The master still learns about them from the history.
@@ -98,7 +98,14 @@ function openBag(){
     grid.append(cell);
   }
   info.textContent = 'Выбери предмет.';
-  box.append(head, grid, info, acts); back.append(box); document.body.append(back);
+  const ground = here().ground || [];
+  const gWrap = document.createElement('div'); gWrap.className = 'bag-ground';
+  if (ground.length){
+    const gh = document.createElement('b'); gh.textContent = 'На земле'; gWrap.append(gh);
+    ground.forEach((g, gi) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ground-item'; b.append(iconEl(g)); b.append(document.createTextNode(` ${g} — подобрать`));
+      b.addEventListener('click', () => invAct(`подбираю ${g}`, `Ты подбираешь: ${g}.`, () => { ground.splice(gi, 1); S.inventory.push(g); })); gWrap.append(b); });
+  }
+  box.append(head, grid, info, acts, gWrap); back.append(box); document.body.append(back);
   x.addEventListener('click', close); back.addEventListener('click', e => { if (e.target === back) close(); });
   document.addEventListener('keydown', function esc(e){ if (e.key === 'Escape'){ close(); document.removeEventListener('keydown', esc); } });
   x.focus();
@@ -162,12 +169,15 @@ $('form').addEventListener('submit', () => { $('cmd').blur(); root.classList.rem
   gear.type = 'button'; gear.className = 'btn gear'; gear.textContent = '⚙'; gear.setAttribute('aria-label', 'Настройки'); tools.append(gear);
   gear.addEventListener('click', e => { e.stopPropagation(); root.classList.toggle('menu-open'); });
   document.addEventListener('click', e => { if (!tools.contains(e.target) || e.target.id === 'restart') root.classList.remove('menu-open'); }); }
+const endTyping = () => { $('cmd').blur(); root.classList.remove('typing'); };
+document.querySelector('.view').addEventListener('click', () => { if (root.classList.contains('typing')) endTyping(); });
+if (vv) vv.addEventListener('resize', () => { if (root.classList.contains('typing') && vv.height > screen.height*.75) endTyping(); });
 $('cmd').addEventListener('focus', () => { root.classList.add('typing'); setTimeout(() => { $('journal').scrollTop = 1e9; }, 300); });
 $('cmd').addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== $('cmd')) root.classList.remove('typing'); }, 150));
 document.querySelectorAll('#acts [data-act]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.act;
   if (k === 'attack') ask(S.held && /меч/i.test(S.held) ? 'атакую мечом ближайшего врага' : 'атакую ближайшего врага', true);
-  if (k === 'dodge') ask('ухожу в глухую защиту', true);
+  if (k === 'dodge') ask('уклоняюсь (действие «Уклонение»)', true);
   if (k === 'hide') ask('пытаюсь спрятаться', true);
   if (k === 'talk') pickTalk(b);
   if (k === 'gm') ask('Мастер, ');
