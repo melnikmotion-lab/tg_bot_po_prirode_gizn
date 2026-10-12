@@ -1,6 +1,19 @@
 
 /* =====================  PIXEL RENDERER (240x135, fixed ramps, ordered dither)  ===================== */
 const HANDS = __HANDS__;
+// Painted art (ChatGPT, pixelized to the game palette). Places with a picture use it instead of the code-drawn scene.
+const ART = __ART__;
+const ARTIMG = { scene: {}, sprite: {} };
+for (const k of Object.keys(ART.scene)){ const im = new Image(); im.src = ART.scene[k]; ARTIMG.scene[k] = im; }
+for (const k of Object.keys(ART.sprite)){ const im = new Image(); im.src = ART.sprite[k]; ARTIMG.sprite[k] = im; }
+const artData = {};
+function artSceneData(place){
+  if (artData[place]) return artData[place];
+  const im = ARTIMG.scene[place]; if (!im || !im.complete || !im.naturalWidth) return null;
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  x.drawImage(im, 0, 0, W, H); return (artData[place] = x.getImageData(0, 0, W, H).data);
+}
+const ART_SPOT = { clearing: { goblin: [168, 120], companion: [96, 122] } };
 const loadImg = src => { const im = new Image(); im.src = src; return im; };
 const HAND = { lit: HANDS.torch_lit.map(loadImg), unlit: loadImg(HANDS.torch_unlit), fist: loadImg(HANDS.fist), fistL: loadImg(HANDS.fist_left) };
 const hexc = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
@@ -385,19 +398,26 @@ function render(t, dt){
   const lit = torchLit(), tx = LEFT_X + 34, ty = HAND_Y + 30;
   const torchAt = (x, y) => lit ? Math.max(0, 1 - Math.hypot(x - tx, (y - ty)*1.25)/(W*.78))**1.25*[1, .9, 1.06][fi] : 0;
   const lightAt = (x, y) => { x |= 0; y |= 0; const i = Math.max(0, Math.min(W*H - 1, y*W + x)); return Math.min(1.2, sc.B[i] + sc.K[i]*(torchAt(x, y) + sc.SL[i]*flick)) + (sc.outdoor ? .55 : 0); };
-  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++){
+  const art = artSceneData(S.place);
+  if (art){
+    // painted scene: darker at the edges of the torchlight, warmer near it
+    for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++){
+      const L = torchAt(x, y), k = .82 + L*.55, j = i*4;
+      buf[j] = Math.min(255, art[j]*k + L*26); buf[j+1] = Math.min(255, art[j+1]*k + L*10); buf[j+2] = Math.min(255, art[j+2]*k); buf[j+3] = 255;
+    }
+  } else for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++){
     const sp = sc.special.get(i); if (sp){ px(x, y, hexc(sp)); continue; }
     px(x, y, shade(sc.names[sc.R[i]], sc.B[i] + sc.K[i]*(torchAt(x, y)*(sc.outdoor ? .5 : 1.05) + sc.SL[i]*flick), x, y));
   }
-  if (sc.tufts) for (const tf of sc.tufts) for (let k = 0; k < tf.h; k++){ px(tf.x, tf.y - k, shade('grass', .55 + k*.06 + torchAt(tf.x, tf.y)*.4, tf.x, tf.y - k)); }
+  if (!art && sc.tufts) for (const tf of sc.tufts) for (let k = 0; k < tf.h; k++){ px(tf.x, tf.y - k, shade('grass', .55 + k*.06 + torchAt(tf.x, tf.y)*.4, tf.x, tf.y - k)); }
   const FL = [['..2..','.232.','.343.','23432','34543','.454.','.353.','..2..'],['.2...','.32..','.343.','23442','34543','.454.','.353.','..2..'],['...2.','..23.','.343.','24432','34543','.454.','.353.','..2..']];
-  for (const f of sc.flames){
+  if (!art) for (const f of sc.flames){
     if (f.sconce) for (let k = 0; k < 6; k++) px(f.x, f.y + 4 + k, RAMP.steel[2]);
     FL[fi].forEach((row, j) => { for (let k = 0; k < row.length; k++) if (row[k] !== '.') for (let a = 0; a < f.s; a++) for (let b = 0; b < f.s; b++) px(f.x - 2*f.s + k*f.s + b, f.y - 8*f.s + j*f.s + a, RAMP.flame[+row[k]]); });
   }
   const pl = here(), vis = pl.enemies.filter(e => !e.hidden && e.state !== 'dead' && e.state !== 'fled');
   vis.filter(e => e.type === 'ghost' && e.state !== 'pacified').forEach(e => drawGhost(e, fi, 120));
-  for (const ft of sc.feats || []) if (ft.f === 'web'){ const c = RAMP.steel[4]; for (let k = 0; k < 5; k++){ const a = k*Math.PI/10; for (let r = 0; r < 34; r++) if (BAYER[(r&3)*4 + (k&3)] < .7) px(Math.cos(a)*r, Math.sin(a)*r, c); } for (const r of [10, 19, 28]) for (let a = 0; a < Math.PI/2; a += .04) if (BAYER[((a*40)|0)&15] < .6) px(Math.cos(a)*r, Math.sin(a)*r, RAMP.steel[3]); }
+  if (!art) for (const ft of sc.feats || []) if (ft.f === 'web'){ const c = RAMP.steel[4]; for (let k = 0; k < 5; k++){ const a = k*Math.PI/10; for (let r = 0; r < 34; r++) if (BAYER[(r&3)*4 + (k&3)] < .7) px(Math.cos(a)*r, Math.sin(a)*r, c); } for (const r of [10, 19, 28]) for (let a = 0; a < Math.PI/2; a += .04) if (BAYER[((a*40)|0)&15] < .6) px(Math.cos(a)*r, Math.sin(a)*r, RAMP.steel[3]); }
   const holding = S.held, sword = holding && /меч/i.test(holding) && hasItem(/меч/i);
   if (sword) drawSword((x, y) => Math.min(1, torchAt(x, y)*1.6 + sc.SL[(y|0)*W + (x|0)]*1.2 + (sc.outdoor ? .5 : 0)));
   drawParticles(dt);
@@ -410,7 +430,14 @@ function render(t, dt){
     ctx.drawImage(c, Math.round(x - c.width*s/2), Math.round(y - c.height*s), c.width*s, c.height*s);
     ctx.filter = 'none'; ctx.globalAlpha = 1;
   };
-  for (const ft of sc.feats || []) if (SPRITES[ft.f]){ const s = SCALE[ft.f] || 2, c = spriteCanvas(SPRITES[ft.f]);
+  const drawArt = (im, x, y, extra = {}) => {
+    const b = Math.min(1.25, .98 + torchAt(x, y - 20)*.5);
+    ctx.filter = extra.flash ? 'brightness(2.6)' : `brightness(${b.toFixed(2)})`; ctx.globalAlpha = extra.alpha ?? 1;
+    ctx.drawImage(im, Math.round(x - im.width/2), Math.round(y - im.height));
+    ctx.filter = 'none'; ctx.globalAlpha = 1;
+  };
+  const artSpr = k => { const im = ARTIMG.sprite[k]; return art && im && im.complete && im.naturalWidth ? im : null; };
+  if (!art) for (const ft of sc.feats || []) if (SPRITES[ft.f]){ const s = SCALE[ft.f] || 2, c = spriteCanvas(SPRITES[ft.f]);
     if (FEATURE_KIND[ft.f] === 'ceil') drawSpr(SPRITES[ft.f], ft.x, c.height*s, s); else if (ft.f === 'bones'){ drawSpr(SPRITES.skull, ft.x - 8, ft.y, 1); drawSpr(SPRITES.bones, ft.x + 6, ft.y + 2, 1); } else drawSpr(SPRITES[ft.f], ft.x, ft.y, s); }
   if (S.place === 'lair' && !S.chestTaken) drawSpr(SPRITES.chest, sc.chestSpot[0], sc.chestSpot[1], 2);
   const legacy = LEGACY.find(l => l.place === S.place);
@@ -420,12 +447,16 @@ function render(t, dt){
     const spot = (sc.typeSpot && sc.typeSpot[e.type]) || sc.spots[slot++ % sc.spots.length];
     if (e.type === 'bat'){ for (let b = 0; b < Math.max(1, Math.min(3, e.hp)); b++) drawSpr(SPRITES.bat, spot[0] - 24 + b*24, spot[1] + (fi + b) % 2*2 - b % 2*6, 1); return; }
     const bob = e.state === 'asleep' ? 0 : [0, 1, 0][fi];
+    const pic = artSpr(e.type);
+    if (pic){ const at = (ART_SPOT[S.place] && ART_SPOT[S.place][e.type]) || spot; drawArt(pic, at[0] + k*26, at[1] + bob, { flash: e.state === 'hurt' && fi !== 1, alpha: e.state === 'asleep' ? .85 : 1 }); return; }
     drawSpr(SPRITES[e.type], spot[0], spot[1] + bob, SCALE[e.type], { flash: e.state === 'hurt' && fi !== 1, alpha: e.state === 'asleep' ? .85 : 1 });
     if (e.state === 'asleep' && fi !== 2){ ctx.fillStyle = '#b39cff'; const zx = spot[0] + 10 + fi*3, zy = spot[1] - 40 - fi*4; ctx.fillRect(zx, zy, 3, 1); ctx.fillRect(zx + 1, zy + 1, 1, 1); ctx.fillRect(zx, zy + 2, 3, 1); }
   });
   for (const [id, c] of Object.entries(COMPANIONS)){
     const st = S.party[id]; if (st.joined || !st.alive || !st.visible || c.place !== S.place) continue;
     const spot = sc.companionSpot || [182, 112];
+    const pic = id === 'skrip' ? artSpr('goblin') : null;
+    if (pic){ const at = (ART_SPOT[S.place] && ART_SPOT[S.place].companion) || spot; drawArt(pic, at[0], at[1] + [0, 1, 0][fi]); continue; }
     drawSpr(SPRITES[id], spot[0], spot[1] + [0, 1, 0][fi], 2);
   }
   const ready = im => im.complete && im.naturalWidth;

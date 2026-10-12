@@ -89,6 +89,49 @@ form{display:flex;gap:8px}
 .mode.off{color:var(--ember)}
 .legal{font-family:var(--f-ui);font-size:10px;line-height:1.5;color:var(--muted);opacity:.7;margin-top:8px}
 .legal a{color:inherit}
+/* Hero bar, actions, bag, dice */
+.herobar{display:flex;gap:10px;align-items:center;background:var(--panel);border:2px solid #4a4260;padding:6px 8px}
+.hb-face{width:64px;height:64px;flex:none;padding:0;border:2px solid #07060b;background:#0e0b14;color:var(--ink);font:600 28px var(--f-display);cursor:pointer}
+.hb-face img{width:100%;height:100%;display:block;image-rendering:pixelated}
+.hb-info{flex:1;min-width:0;display:grid;gap:2px}
+.hb-info b{font-family:var(--f-display);font-weight:600;font-size:17px}
+.hb-info small{font-family:var(--f-ui);font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hpbar{position:relative;height:12px;background:#2a1418;border:1px solid #07060b}
+.hpbar i{display:block;height:100%;background:var(--blood);transition:width .4s}
+.hpbar span{position:absolute;inset:0;text-align:center;font:600 9px/12px var(--f-ui);color:#fff}
+.hb-hands{display:flex;gap:6px}
+.slot,.bagbtn{width:44px;height:44px;padding:0;border:2px solid #4a4260;background:#0e0b14;display:grid;place-items:center;position:relative;cursor:pointer;color:var(--muted);font:600 14px var(--f-ui)}
+.bagbtn{border-color:var(--ember);font-size:20px}
+.bagbtn em{position:absolute;right:-7px;top:-7px;background:var(--ember);color:#1a0d05;font:600 10px/14px var(--f-ui);padding:0 4px;font-style:normal}
+.ico{display:grid;place-items:center;width:100%;height:100%}
+.ico img{width:32px;height:32px;image-rendering:pixelated}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.acts button{flex:1 1 auto;min-height:40px;padding:6px 10px;background:var(--panel-2);color:var(--ink);border:2px solid #4a4260;font:600 13px var(--f-ui);cursor:pointer}
+.acts button:hover,.acts button:focus-visible{border-color:var(--ember);outline:none}
+.bag-back{position:fixed;inset:0;background:rgba(5,4,12,.6);z-index:55;display:flex;align-items:flex-end;justify-content:center}
+.bag{width:min(560px,100%);background:#14101c;border-top:3px solid #6b6080;padding:12px 14px 18px;display:grid;gap:10px}
+.bag-head{display:flex;justify-content:space-between;align-items:center}
+.bag-head b{font-family:var(--f-display);font-weight:600;font-size:20px;color:var(--gold)}
+.bag-x{background:none;border:0;color:var(--muted);font-size:20px;min-width:44px;min-height:44px;cursor:pointer}
+.bag-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.bag-grid .cell{aspect-ratio:1;border:2px solid #3a3346;background:#0e0b14;padding:0;cursor:pointer;color:var(--muted);font:600 18px var(--f-ui)}
+.bag-grid .cell .ico img{width:70%;height:auto}
+.bag-grid .cell.sel{border-color:var(--ember);background:#24180e}
+.bag-grid .cell:disabled{cursor:default;opacity:.5}
+.bag-info{font-size:15px;color:var(--ink);min-height:22px}
+.bag-acts{display:flex;gap:6px;flex-wrap:wrap}
+.bag-acts button{min-height:40px;padding:6px 10px;background:var(--panel-2);color:var(--ink);border:2px solid #4a4260;font:600 13px var(--f-ui);cursor:pointer}
+.dice{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.6);opacity:0;pointer-events:none;display:grid;justify-items:center;gap:6px;transition:opacity .2s,transform .2s}
+.dice.roll,.dice.ok,.dice.fail,.dice.crit,.dice.fumble{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.dice .d{width:72px;height:72px;display:grid;place-items:center;font:600 34px var(--f-display);color:#fff;background:#1a1626;border:3px solid #fff;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+.dice .t{font:600 12px var(--f-ui);background:rgba(8,6,12,.85);padding:3px 8px;color:#fff;white-space:nowrap}
+.dice.roll .d{animation:spin .14s linear infinite}
+.dice.ok .d{background:#2f6a1e;border-color:#7fbf5a}.dice.ok .t{color:#9fe07a}
+.dice.fail .d{background:#6a1a1a;border-color:#e05a4a}.dice.fail .t{color:#ff8a7a}
+.dice.crit .d{background:#8a6a10;border-color:#ffd04a;box-shadow:0 0 24px #ffd04a}.dice.crit .t{color:#ffd04a}
+.dice.fumble .d{background:#1a2e6a;border-color:#6aa0ff;box-shadow:0 0 24px #4a7aff}.dice.fumble .t{color:#8ab4ff}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* Hero choice */
 .hero{font-family:var(--f-body);font-size:14px;color:var(--muted)}
 .hero b{color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:16px}
@@ -118,7 +161,12 @@ form{display:flex;gap:8px}
   </header>
   <div class="game">
     <div class="left">
-      <div class="view"><canvas id="scr" width="240" height="135" aria-label="Вид от первого лица"></canvas><div class="locname" id="locname"></div></div>
+      <div class="view"><canvas id="scr" width="240" height="135" aria-label="Вид от первого лица"></canvas><div class="locname" id="locname"></div><div class="dice" id="dice" aria-live="polite"></div></div>
+      <div class="herobar">
+        <button class="hb-face" id="hb-face" type="button" aria-label="Лист персонажа"></button>
+        <div class="hb-info"><b id="hb-name"></b><small id="hb-sub"></small><div class="hpbar"><i id="hb-hp"></i><span id="hb-hpt"></span></div></div>
+        <div class="hb-hands"><button class="slot" id="slot-r" type="button"></button><button class="slot" id="slot-l" type="button"></button><button class="bagbtn" id="bagbtn" type="button" aria-label="Сумка">🎒<em id="bagn"></em></button></div>
+      </div>
       <div class="sheet">
         <div class="hero" id="hero"></div>
         <div class="row">
@@ -139,6 +187,9 @@ form{display:flex;gap:8px}
     </div>
     <div class="right">
       <div class="journal" id="journal" aria-live="polite"></div>
+      <div class="acts" id="acts">
+        <button type="button" data-act="attack">⚔ Атака</button><button type="button" data-act="dodge">🛡 Уклонение</button><button type="button" data-act="hide">👁 Спрятаться</button><button type="button" data-act="talk">💬 Поговорить</button><button type="button" data-act="gm">? Мастер</button>
+      </div>
       <form id="form" autocomplete="off">
         <input id="cmd" type="text" maxlength="240" placeholder="Что ты делаешь? «Мастер, …» — вопрос ведущему">
         <button class="go" id="go" type="submit">Сделать</button>

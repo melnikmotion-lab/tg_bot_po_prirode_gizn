@@ -17,12 +17,15 @@ label[for="tier"]{display:none}
 .pw-close{justify-self:end}
 /* Phones: picture on top, then the story and the command line; the character sheet goes below. */
 @media (max-width:939px){
-  .wrap{padding-block:8px 16px;gap:10px}
+  .wrap{padding-block:8px 16px;gap:10px;grid-template-columns:minmax(0,1fr)}
+  .game{min-width:0}
   .game{display:flex;flex-direction:column;gap:10px}
   .left,.right{display:contents}
   .view{order:1;position:sticky;top:0;z-index:5}
-  .journal{order:2;height:44vh;min-height:220px}
-  #form{order:3}
-  .mode{order:4}
-  .sheet{order:5}
+  .herobar{order:2}
+  .journal{order:3;height:36vh;min-height:200px}
+  .acts{order:4}
+  #form{order:5}
+  .mode{order:6}
+  .sheet{order:7}
 }

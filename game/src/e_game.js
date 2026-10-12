@@ -638,6 +638,7 @@ function chooseHero(done){
   back.append(box); document.body.append(back);
   box.querySelector('button').focus();
 }
+/*__UI__*/
 $('form').addEventListener('submit', e => { e.preventDefault(); act($('cmd').value); });
 $('restart').addEventListener('click', restart);
 $('sound').addEventListener('click', () => setSound(!AU.on));
