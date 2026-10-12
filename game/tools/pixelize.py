@@ -6,7 +6,7 @@ downscale, map to the game palette with the same 4x4 ordered dither the renderer
 import argparse
 from PIL import Image, ImageEnhance, ImageFilter
 
-# The renderer's ramps and sprite palette (src/c_render.js), plus a skin ramp for portraits.
+# The renderer's ramps and sprite palette (src/c_render.js), plus skin and olive (goblin, moss) ramps.
 HEX = """
 120e1c 211a33 342a4d 4d3f69 6b5a86 9483aa 0a0812 1c1629 2a2140 3a2f55
 120d0b 261b15 3d2b20 59402d 7a5a3e a07a52 08060a 140f0c 22190f 33251a 4a3626 5e4632
@@ -24,6 +24,7 @@ HEX = """
 0e0b14 2b2836 4f4c5e 8a879a d6d4e0 3a2212 6e4424 b0844e 5e1414 b02a2a ffd04a 24401e 4f8a34
 1e3a66 7fb8f0 3e1a5a 7a3a9a 8aa45a d8a07a 8a4a2a 3a5a2a e0702a 9a3a14
 2a1610 4a2a1c 6e4230 9a5e44 c4876a e6b394
+1a1e10 2c3218 40461f 56592a 6e6e3a 8a8850 a6a26a
 """
 PALETTE = [tuple(int(h[i:i+2], 16) for i in (0, 2, 4)) for h in HEX.split()]
 BAYER = [(v + .5) / 16 - .5 for v in (0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5)]
@@ -45,6 +46,7 @@ def main():
     ap.add_argument('--saturation', type=float, default=1.15)
     ap.add_argument('--spread', type=float, default=14, help='dither strength')
     ap.add_argument('--preview', type=int, default=6, help='also save a scaled-up preview')
+    ap.add_argument('--sprite', action='store_true', help='black background becomes transparent, dark outline around the figure')
     a = ap.parse_args()
     w, h = map(int, a.size.lower().split('x'))
 
@@ -72,6 +74,17 @@ def main():
         for x in range(w):
             c = px[y * w + x]; t = BAYER[(y & 3) * 4 + (x & 3)] * a.spread
             o[x, y] = nearest((c[0] + t, c[1] + t, c[2] + t), pal)
+    if a.sprite:
+        out = out.convert('RGBA'); o = out.load()
+        for y in range(h):
+            for x in range(w):
+                r, g, b, _ = o[x, y]
+                if r + g + b < 45: o[x, y] = (0, 0, 0, 0)
+        solid = [[o[x, y][3] > 0 for x in range(w)] for y in range(h)]
+        for y in range(h):
+            for x in range(w):
+                if not solid[y][x] and any(0 <= x + dx < w and 0 <= y + dy < h and solid[y + dy][x + dx] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                    o[x, y] = (7, 6, 11, 255)
     out.save(a.dst)
     if a.preview > 1:
         out.resize((w * a.preview, h * a.preview), Image.NEAREST).save(a.dst.rsplit('.', 1)[0] + '_preview.png')
