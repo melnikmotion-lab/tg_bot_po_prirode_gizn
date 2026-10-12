@@ -75,11 +75,14 @@ def main():
             c = px[y * w + x]; t = BAYER[(y & 3) * 4 + (x & 3)] * a.spread
             o[x, y] = nearest((c[0] + t, c[1] + t, c[2] + t), pal)
     if a.sprite:
+        # background = the colour of the corners (black or white, whatever the generator gave)
+        corners = [small.getpixel(c) for c in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1))]
+        bg = tuple(sum(c[i] for c in corners) // 4 for i in range(3))
         out = out.convert('RGBA'); o = out.load()
         for y in range(h):
             for x in range(w):
-                r, g, b, _ = o[x, y]
-                if r + g + b < 45: o[x, y] = (0, 0, 0, 0)
+                c = small.getpixel((x, y))
+                if sum(abs(c[i] - bg[i]) for i in range(3)) < 160: o[x, y] = (0, 0, 0, 0)
         solid = [[o[x, y][3] > 0 for x in range(w)] for y in range(h)]
         for y in range(h):
             for x in range(w):
