@@ -13,6 +13,8 @@ function artSceneData(place){
   const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
   x.drawImage(im, 0, 0, W, H); return (artData[place] = x.getImageData(0, 0, W, H).data);
 }
+// What the hero holds is shown in the hero bar, not drawn over the picture.
+const SHOW_HANDS = false;
 const ART_SPOT = { clearing: { goblin: [168, 120], companion: [96, 122] } };
 const loadImg = src => { const im = new Image(); im.src = src; return im; };
 const HAND = { lit: HANDS.torch_lit.map(loadImg), unlit: loadImg(HANDS.torch_unlit), fist: loadImg(HANDS.fist), fistL: loadImg(HANDS.fist_left) };
@@ -419,7 +421,7 @@ function render(t, dt){
   vis.filter(e => e.type === 'ghost' && e.state !== 'pacified').forEach(e => drawGhost(e, fi, 120));
   if (!art) for (const ft of sc.feats || []) if (ft.f === 'web'){ const c = RAMP.steel[4]; for (let k = 0; k < 5; k++){ const a = k*Math.PI/10; for (let r = 0; r < 34; r++) if (BAYER[(r&3)*4 + (k&3)] < .7) px(Math.cos(a)*r, Math.sin(a)*r, c); } for (const r of [10, 19, 28]) for (let a = 0; a < Math.PI/2; a += .04) if (BAYER[((a*40)|0)&15] < .6) px(Math.cos(a)*r, Math.sin(a)*r, RAMP.steel[3]); }
   const holding = S.held, sword = holding && /меч/i.test(holding) && hasItem(/меч/i);
-  if (sword) drawSword((x, y) => Math.min(1, torchAt(x, y)*1.6 + sc.SL[(y|0)*W + (x|0)]*1.2 + (sc.outdoor ? .5 : 0)));
+  if (SHOW_HANDS && sword) drawSword((x, y) => Math.min(1, torchAt(x, y)*1.6 + sc.SL[(y|0)*W + (x|0)]*1.2 + (sc.outdoor ? .5 : 0)));
   drawParticles(dt);
   ctx.putImageData(img, 0, 0);
   // sprites (characters, chest, legacy bones) — lit by the scene light at their feet
@@ -462,14 +464,14 @@ function render(t, dt){
   const ready = im => im.complete && im.naturalWidth;
   const inHand = (item, x, big) => { const c = spriteCanvas(heldArt(item)), s = 2; ctx.drawImage(c, x + 34 - c.width*s/2, HAND_Y + (big ? 100 : 72) - c.height*s, c.width*s, c.height*s); };
   // right hand: shown only while it holds something
-  if (holding && S.inventory.includes(holding)){
+  if (SHOW_HANDS && holding && S.inventory.includes(holding)){
     if (!sword && !/щит/i.test(holding)) inHand(holding, RIGHT_X);
     if (ready(HAND.fist)) ctx.drawImage(HAND.fist, RIGHT_X, HAND_Y);
     if (/щит/i.test(holding)) inHand(holding, RIGHT_X, true);
   }
   // left hand: shown only while it holds something (torch, shield, any item)
   const left = S.left && S.inventory.includes(S.left) ? S.left : null;
-  if (left){
+  if (SHOW_HANDS && left){
     if (/факел/i.test(left)){ const im = lit ? HAND.lit[fi] : HAND.unlit; if (ready(im)) ctx.drawImage(im, LEFT_X, HAND_Y); }
     else { if (!/щит/i.test(left)) inHand(left, LEFT_X); if (ready(HAND.fistL)) ctx.drawImage(HAND.fistL, LEFT_X, HAND_Y); if (/щит/i.test(left)) inHand(left, LEFT_X, true); }
   }
