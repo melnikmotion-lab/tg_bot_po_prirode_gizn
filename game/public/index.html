@@ -175,7 +175,7 @@ label[for="tier"]{display:none}
 .sheet-x{display:none}
 .bagbtn img{width:34px;height:34px;image-rendering:pixelated}
 .app,.app body{height:100%;overflow:hidden;margin:0}
-.app .wrap{height:100dvh;max-width:820px;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px}
+.app .wrap{height:var(--app-h,100dvh);max-width:820px;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px}
 .app header{flex:none;flex-wrap:nowrap;align-items:center;gap:8px}
 .app h1{font-size:17px;white-space:nowrap}
 .app .tools{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
@@ -197,7 +197,8 @@ label[for="tier"]{display:none}
 .app.sheet-open .sheet{display:grid;position:fixed;left:0;right:0;bottom:0;max-height:85dvh;overflow-y:auto;z-index:60;border-top:3px solid #6b6080;box-shadow:0 -30px 60px rgba(0,0,0,.7);padding:44px 14px 18px}
 .app.sheet-open .sheet-x{display:block;position:absolute;right:6px;top:4px;background:none;border:0;color:var(--muted);font-size:20px;min-width:44px;min-height:44px;cursor:pointer}
 /* while typing the keyboard takes half the screen: shrink the picture, hide the bars */
-.app.typing .view{height:16dvh}
+.app.typing .view{height:min(16dvh,22vw)}
+.app.typing .journal{font-size:14px}
 .app.typing .herobar,.app.typing .acts,.app.typing header{display:none}
 </style>
 
@@ -1915,6 +1916,10 @@ $('slot-l').addEventListener('click', openBag);
 const root = document.documentElement;
 const fitApp = () => root.classList.toggle('app', innerWidth < 940 || !!(window.Telegram && Telegram.WebApp && Telegram.WebApp.initData));
 fitApp(); addEventListener('resize', fitApp);
+// iPhone keeps the page full height under the keyboard: size the app to the part of the screen that is actually visible
+const vv = window.visualViewport;
+const fitHeight = () => { const h = vv ? vv.height : innerHeight; root.style.setProperty('--app-h', `${Math.round(h)}px`); if (root.classList.contains('typing')) scrollTo(0, 0); };
+fitHeight(); if (vv){ vv.addEventListener('resize', fitHeight); vv.addEventListener('scroll', fitHeight); }
 // the attribution stays reachable in the app layout: a copy lives at the bottom of the hero sheet
 { const lg = document.querySelector('.wrap > .legal'); if (lg) $('sheet').append(lg.cloneNode(true)); }
 const toggleSheet = on => { root.classList.toggle('sheet-open', on); if (on) $('sheet-x').focus(); };

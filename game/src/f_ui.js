@@ -118,6 +118,10 @@ $('slot-l').addEventListener('click', openBag);
 const root = document.documentElement;
 const fitApp = () => root.classList.toggle('app', innerWidth < 940 || !!(window.Telegram && Telegram.WebApp && Telegram.WebApp.initData));
 fitApp(); addEventListener('resize', fitApp);
+// iPhone keeps the page full height under the keyboard: size the app to the part of the screen that is actually visible
+const vv = window.visualViewport;
+const fitHeight = () => { const h = vv ? vv.height : innerHeight; root.style.setProperty('--app-h', `${Math.round(h)}px`); if (root.classList.contains('typing')) scrollTo(0, 0); };
+fitHeight(); if (vv){ vv.addEventListener('resize', fitHeight); vv.addEventListener('scroll', fitHeight); }
 // the attribution stays reachable in the app layout: a copy lives at the bottom of the hero sheet
 { const lg = document.querySelector('.wrap > .legal'); if (lg) $('sheet').append(lg.cloneNode(true)); }
 const toggleSheet = on => { root.classList.toggle('sheet-open', on); if (on) $('sheet-x').focus(); };
