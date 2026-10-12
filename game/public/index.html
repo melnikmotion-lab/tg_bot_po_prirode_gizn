@@ -101,7 +101,7 @@ form{display:flex;gap:8px}
 .hb-face img{width:100%;height:100%;display:block;image-rendering:pixelated}
 .hb-info{flex:1;min-width:0;display:grid;gap:2px}
 .hb-info b{font-family:var(--f-display);font-weight:600;font-size:17px}
-.hb-info small{font-family:var(--f-ui);font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb-info small{font-family:var(--f-ui);font-size:11px;color:var(--frost);cursor:pointer;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hpbar{position:relative;height:12px;background:#2a1418;border:1px solid #07060b}
 .hpbar i{display:block;height:100%;background:var(--blood);transition:width .4s}
 .hpbar span{position:absolute;inset:0;text-align:center;font:600 9px/12px var(--f-ui);color:#fff}
@@ -1835,6 +1835,8 @@ const ITEM_DESC = [[/меч/, 'Длинный меч: хорошая сталь,
   [/факел/, 'Факел: тряпка в смоле на палке. Горит около часа.'], [/огнив/, 'Огниво и кремень: высечь искру и зажечь факел.'], [/вер[её]вк/, 'Пеньковая верёвка, метров пятнадцать. Выдержит человека в кольчуге.'],
   [/краюх|хлеб/, 'Краюха чёрного хлеба. Подсохла, но съедобна.'], [/свист/, 'Медный свисток стражника. Слышно далеко.'], [/карт/, 'Крапленая колода: на рубашке еле заметные метки.'],
   [/пиво|фляг/, 'Фляга крепкого дварфийского пива.'], [/ключ/, 'Тяжёлый железный ключ.'], [/зель/, 'Зелье в стеклянном пузырьке.'], [/гриб/, 'Светящийся гриб. Тина знает, на что он годится.']];
+const HOLDABLE = /меч|кинжал|нож|топор|дубин|булав|копь|посох|лук|праща|щит|факел|фонар|кирк|молот|палк|камень/i, LEFT_HAND = /щит|факел|фонар/i, WORN = /кольчуг|доспех|плащ/i;
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 const describe = name => { const n = String(name).toLowerCase(), d = ITEM_DESC.find(([re]) => re.test(n)); return d ? d[1] : `${name[0].toUpperCase()}${name.slice(1)}: ничего особенного на вид.`; };
 
 function renderHeroBar(){
@@ -1845,7 +1847,7 @@ function renderHeroBar(){
   if (pic){ const im = document.createElement('img'); im.src = pic; im.alt = H.name; face.append(im); }
   else face.textContent = (H ? H.name : 'В')[0];
   $('hb-name').textContent = H ? H.name.split(' ')[0] : 'Воин';
-  $('hb-sub').textContent = H ? H.title : 'свой герой';
+  $('hb-sub').textContent = 'Лист героя ›';
   $('hb-hp').style.width = `${Math.round(100*S.hp/S.maxHp)}%`;
   $('hb-hpt').textContent = `${S.hp}/${S.maxHp}`;
   const slot = (el, item, side) => {
@@ -1877,12 +1879,25 @@ function openBag(){
     const inHand = item === S.held ? ' (в правой руке)' : item === S.left ? ' (в левой руке)' : '';
     info.textContent = item + inHand;
     acts.textContent = '';
-    [['✋ Взять в руку', () => ask(`беру в руку ${item}`, true)], ['⚙ Использовать…', () => ask(`использую ${item} `)],
-     ['👁 Осмотреть', null], ['🗑 Выбросить', () => ask(`выбрасываю ${item}`, true)]].forEach(([t, fn]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
-      // looking at your own things is free: no master, no dice
-      b.addEventListener('click', () => { if (!fn){ info.textContent = describe(item) + inHand; return; } close(); fn(); }); acts.append(b);
-    });
+    const side = S.held === item ? 'held' : S.left === item ? 'left' : null;
+    const list = [];
+    if (side) list.push(['📥 Убрать в сумку', () => invAct(`убираю ${item} в сумку`, `${cap(item)} — в сумке.`, () => setHand(side, null))]);
+    else if (HOLDABLE.test(item)) list.push(['✋ Взять в руку', () => invAct(`беру в руку ${item}`, `Ты берёшь в руку: ${item}.`, () => setHand(LEFT_HAND.test(item) ? 'left' : 'held', item))]);
+    if (/огнив/i.test(item) && hasItem(/факел/i) && !torchLit()) list.push(['🔥 Зажечь факел', () => invAct('зажигаю факел огнивом', 'Искра, другая — и факел занимается огнём.', () => { setHand('left', S.inventory.find(i => /факел/i.test(i))); S.torchLit = true; SFX.torch(); })]);
+    if (/факел/i.test(item) && torchLit()) list.push(['💨 Погасить', () => invAct('гашу факел', 'Ты гасишь факел. Темнота подступает ближе.', () => { S.torchLit = false; })]);
+    list.push(['⚙ Использовать…', () => { close(); ask(`использую ${item} `); }]);
+    list.push(['👁 Осмотреть', () => { info.textContent = describe(item) + inHand; }]);
+    if (!WORN.test(item)) list.push(['🗑 Выбросить', () => invAct(`выбрасываю ${item}`, `Ты бросаешь на землю: ${item}.`, () => {
+      if (S.held === item) S.held = null; if (S.left === item){ S.left = null; if (/факел/i.test(item)) S.torchLit = false; }
+      S.inventory.splice(S.inventory.indexOf(item), 1); })]);
+    list.forEach(([t, fn]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.addEventListener('click', fn); acts.append(b); });
+  };
+  // Things done with your own bag are instant and free: no master, no dice. The master still learns about them from the history.
+  const invAct = (said, told, change) => {
+    if (busy || S.over) return;
+    change(); S.journal.push({ who: 'sys', text: told });
+    S.history.push({ p: said, n: told }); if (S.history.length > 24) S.history.shift();
+    save(); renderAll(); close();
   };
   const n = Math.max(10, Math.ceil(S.inventory.length/5)*5);
   for (let i = 0; i < n; i++){
@@ -1945,6 +1960,7 @@ fitHeight(); if (vv){ vv.addEventListener('resize', fitHeight); vv.addEventListe
 // the attribution stays reachable in the app layout: a copy lives at the bottom of the hero sheet
 { const lg = document.querySelector('.wrap > .legal'); if (lg) $('sheet').append(lg.cloneNode(true)); }
 const toggleSheet = on => { root.classList.toggle('sheet-open', on); if (on) $('sheet-x').focus(); };
+$('hb-sub').addEventListener('click', () => $('hb-face').click());
 $('hb-face').addEventListener('click', () => { if (root.classList.contains('app')) toggleSheet(true); else $('sheet').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
 $('sheet-x').addEventListener('click', () => toggleSheet(false));
 document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleSheet(false); });
