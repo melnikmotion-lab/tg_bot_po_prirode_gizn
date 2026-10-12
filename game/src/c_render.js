@@ -397,14 +397,15 @@ function condOverlay(kind){
 let lastT = 0;
 function render(t, dt){
   const fi = Math.floor(t/333) % 3, sc = sceneOf(S.place), flick = [1, .92, 1.06][fi];
-  const lit = torchLit(), tx = LEFT_X + 34, ty = HAND_Y + 30;
+  const lit = torchLit(), tx = SHOW_HANDS ? LEFT_X + 34 : W/2, ty = SHOW_HANDS ? HAND_Y + 30 : H - 6;  // without hands the light comes from the hero, bottom centre
   const torchAt = (x, y) => lit ? Math.max(0, 1 - Math.hypot(x - tx, (y - ty)*1.25)/(W*.78))**1.25*[1, .9, 1.06][fi] : 0;
   const lightAt = (x, y) => { x |= 0; y |= 0; const i = Math.max(0, Math.min(W*H - 1, y*W + x)); return Math.min(1.2, sc.B[i] + sc.K[i]*(torchAt(x, y) + sc.SL[i]*flick)) + (sc.outdoor ? .55 : 0); };
   const art = artSceneData(S.place);
   if (art){
-    // painted scene: darker at the edges of the torchlight, warmer near it
+    // painted scene: in a dark place almost nothing is visible without fire; the torch lights a circle around the hero
+    const light = placeInfo().light, amb = light === 'dark' ? .06 : light === 'dim' ? .45 : .82, gain = light === 'dark' ? 1.6 : .55;
     for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++){
-      const L = torchAt(x, y), k = .82 + L*.55, j = i*4;
+      const L = torchAt(x, y), k = amb + L*gain, j = i*4;
       buf[j] = Math.min(255, art[j]*k + L*26); buf[j+1] = Math.min(255, art[j+1]*k + L*10); buf[j+2] = Math.min(255, art[j+2]*k); buf[j+3] = 255;
     }
   } else for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++){
@@ -433,7 +434,7 @@ function render(t, dt){
     ctx.filter = 'none'; ctx.globalAlpha = 1;
   };
   const drawArt = (im, x, y, extra = {}) => {
-    const b = Math.min(1.25, .98 + torchAt(x, y - 20)*.5);
+    const lt = placeInfo().light, b = Math.min(1.25, (lt === 'dark' ? .08 : lt === 'dim' ? .5 : .98) + torchAt(x, y - 20)*(lt === 'dark' ? 1.6 : .5));
     ctx.filter = extra.flash ? 'brightness(2.6)' : `brightness(${b.toFixed(2)})`; ctx.globalAlpha = extra.alpha ?? 1;
     ctx.drawImage(im, Math.round(x - im.width/2), Math.round(y - im.height));
     ctx.filter = 'none'; ctx.globalAlpha = 1;

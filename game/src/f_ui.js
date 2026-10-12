@@ -22,6 +22,12 @@ const ask = (text, send) => {
   c.focus(); const p = text.indexOf('»'); c.setSelectionRange(p >= 0 ? p : text.length, p >= 0 ? p : text.length);
 };
 
+const ITEM_DESC = [[/меч/, 'Длинный меч: хорошая сталь, рукоять обмотана кожей. Урон 1d8.'], [/кольчуг/, 'Кольчуга: тяжёлая, звенит при ходьбе, но держит удар. Класс брони 16.'],
+  [/факел/, 'Факел: тряпка в смоле на палке. Горит около часа.'], [/огнив/, 'Огниво и кремень: высечь искру и зажечь факел.'], [/вер[её]вк/, 'Пеньковая верёвка, метров пятнадцать. Выдержит человека в кольчуге.'],
+  [/краюх|хлеб/, 'Краюха чёрного хлеба. Подсохла, но съедобна.'], [/свист/, 'Медный свисток стражника. Слышно далеко.'], [/карт/, 'Крапленая колода: на рубашке еле заметные метки.'],
+  [/пиво|фляг/, 'Фляга крепкого дварфийского пива.'], [/ключ/, 'Тяжёлый железный ключ.'], [/зель/, 'Зелье в стеклянном пузырьке.'], [/гриб/, 'Светящийся гриб. Тина знает, на что он годится.']];
+const describe = name => { const n = String(name).toLowerCase(), d = ITEM_DESC.find(([re]) => re.test(n)); return d ? d[1] : 'Ничего особенного на вид.'; };
+
 function renderHeroBar(){
   const H = heroOf(), face = $('hb-face');
   if (!face) return;
@@ -41,6 +47,7 @@ function renderHeroBar(){
   };
   slot($('slot-r'), S.held, 'правая рука'); slot($('slot-l'), S.left, 'левая рука');
   $('bagn').textContent = S.inventory.length;
+  const bb = $('bagbtn'); if (!bb.querySelector('img')){ const im = document.createElement('img'); im.src = ART.icon.bag; im.alt = ''; bb.prepend(im); }
 }
 
 function openBag(){
@@ -62,8 +69,10 @@ function openBag(){
     info.textContent = item + inHand;
     acts.textContent = '';
     [['✋ Взять в руку', () => ask(`беру в руку ${item}`, true)], ['⚙ Использовать…', () => ask(`использую ${item} `)],
-     ['👁 Осмотреть', () => ask(`осматриваю ${item}`, true)], ['🗑 Выбросить', () => ask(`выбрасываю ${item}`, true)]].forEach(([t, fn]) => {
-      const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.addEventListener('click', () => { close(); fn(); }); acts.append(b);
+     ['👁 Осмотреть', null], ['🗑 Выбросить', () => ask(`выбрасываю ${item}`, true)]].forEach(([t, fn]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
+      // looking at your own things is free: no master, no dice
+      b.addEventListener('click', () => { if (!fn){ info.textContent = `${item}${inHand}. ${describe(item)}`; return; } close(); fn(); }); acts.append(b);
     });
   };
   const n = Math.max(10, Math.ceil(S.inventory.length/5)*5);
@@ -105,7 +114,18 @@ renderHud = () => { baseHud(); renderHeroBar(); };
 $('bagbtn').addEventListener('click', openBag);
 $('slot-r').addEventListener('click', openBag);
 $('slot-l').addEventListener('click', openBag);
-$('hb-face').addEventListener('click', () => $('hero') && $('hero').scrollIntoView({ behavior: 'smooth', block: 'center' }));
+/* compact app layout for phones and Telegram: the hero sheet opens from the portrait, the picture shrinks while typing */
+const root = document.documentElement;
+const fitApp = () => root.classList.toggle('app', innerWidth < 940 || !!(window.Telegram && Telegram.WebApp && Telegram.WebApp.initData));
+fitApp(); addEventListener('resize', fitApp);
+// the attribution stays reachable in the app layout: a copy lives at the bottom of the hero sheet
+{ const lg = document.querySelector('.wrap > .legal'); if (lg) $('sheet').append(lg.cloneNode(true)); }
+const toggleSheet = on => { root.classList.toggle('sheet-open', on); if (on) $('sheet-x').focus(); };
+$('hb-face').addEventListener('click', () => { if (root.classList.contains('app')) toggleSheet(true); else $('sheet').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+$('sheet-x').addEventListener('click', () => toggleSheet(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleSheet(false); });
+$('cmd').addEventListener('focus', () => { root.classList.add('typing'); setTimeout(() => { $('journal').scrollTop = 1e9; }, 300); });
+$('cmd').addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== $('cmd')) root.classList.remove('typing'); }, 150));
 document.querySelectorAll('#acts [data-act]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.act;
   if (k === 'attack') ask(S.held && /меч/i.test(S.held) ? 'атакую мечом ближайшего врага' : 'атакую ближайшего врага', true);

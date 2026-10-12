@@ -165,9 +165,10 @@ form{display:flex;gap:8px}
       <div class="herobar">
         <button class="hb-face" id="hb-face" type="button" aria-label="Лист персонажа"></button>
         <div class="hb-info"><b id="hb-name"></b><small id="hb-sub"></small><div class="hpbar"><i id="hb-hp"></i><span id="hb-hpt"></span></div></div>
-        <div class="hb-hands"><button class="slot" id="slot-r" type="button"></button><button class="slot" id="slot-l" type="button"></button><button class="bagbtn" id="bagbtn" type="button" aria-label="Сумка">🎒<em id="bagn"></em></button></div>
+        <div class="hb-hands"><button class="slot" id="slot-r" type="button"></button><button class="slot" id="slot-l" type="button"></button><button class="bagbtn" id="bagbtn" type="button" aria-label="Сумка"><em id="bagn"></em></button></div>
       </div>
-      <div class="sheet">
+      <div class="sheet" id="sheet" role="dialog" aria-label="Лист героя">
+        <button class="sheet-x" id="sheet-x" type="button" aria-label="Закрыть">✕</button>
         <div class="hero" id="hero"></div>
         <div class="row">
           <div><span class="lbl">Здоровье</span><div class="hearts" id="hearts"></div></div>
@@ -188,7 +189,7 @@ form{display:flex;gap:8px}
     <div class="right">
       <div class="journal" id="journal" aria-live="polite"></div>
       <div class="acts" id="acts">
-        <button type="button" data-act="attack">⚔ Атака</button><button type="button" data-act="dodge">🛡 Уклонение</button><button type="button" data-act="hide">👁 Спрятаться</button><button type="button" data-act="talk">💬 Поговорить</button><button type="button" data-act="gm">? Мастер</button>
+        <button type="button" data-act="attack">⚔ Атака</button><button type="button" data-act="dodge">🛡 Уклонение</button><button type="button" data-act="hide">🌑 Спрятаться</button><button type="button" data-act="talk">💬 Поговорить</button><button type="button" data-act="gm">? Мастер</button>
       </div>
       <form id="form" autocomplete="off">
         <input id="cmd" type="text" maxlength="240" placeholder="Что ты делаешь? «Мастер, …» — вопрос ведущему">

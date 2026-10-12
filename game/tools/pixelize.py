@@ -79,10 +79,14 @@ def main():
         corners = [small.getpixel(c) for c in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1))]
         bg = tuple(sum(c[i] for c in corners) // 4 for i in range(3))
         out = out.convert('RGBA'); o = out.load()
-        for y in range(h):
-            for x in range(w):
-                c = small.getpixel((x, y))
-                if sum(abs(c[i] - bg[i]) for i in range(3)) < 160: o[x, y] = (0, 0, 0, 0)
+        # only background connected to the border becomes transparent, so dark parts inside the figure stay solid
+        isbg = lambda x, y: sum(abs(small.getpixel((x, y))[i] - bg[i]) for i in range(3)) < 160
+        seen, stack = set(), [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+        while stack:
+            x, y = stack.pop()
+            if (x, y) in seen or not (0 <= x < w and 0 <= y < h) or not isbg(x, y): continue
+            seen.add((x, y)); o[x, y] = (0, 0, 0, 0)
+            stack += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
         solid = [[o[x, y][3] > 0 for x in range(w)] for y in range(h)]
         for y in range(h):
             for x in range(w):
