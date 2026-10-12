@@ -230,14 +230,14 @@ let badge = null;
 function setQuota(q){
   Q = q; if (!badge) return;
   if (q.pass) badge.textContent = '∞ ходов до ' + new Date(q.pass).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-  else { const left = Math.max(0, q.free - q.used) + q.bonus; badge.textContent = 'Ходов: ' + left; badge.classList.toggle('low', left <= 5); }
+  else { const left = Math.max(0, q.free - q.used) + (q.starter || 0) + q.bonus; badge.textContent = 'Ходов: ' + left; badge.classList.toggle('low', left <= 5); }
 }
 function paywall(){
   if (document.querySelector('.pw-back')) return;
   const back = el('div', 'pw-back'), box = el('div', 'pw');
   box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
   box.append(el('h2', null, 'Ещё ходов?'));
-  const used = Q ? `Бесплатно ${Q.free} ходов в день, они обновляются каждые сутки.` : 'Бесплатные ходы обновляются каждые сутки.';
+  const used = Q ? `Каждый день — ${Q.free} бесплатных ходов, они обновляются каждые сутки.` : 'Бесплатные ходы обновляются каждые сутки.';
   box.append(el('p', null, used));
   if (tg){
     config.products.forEach(p => {

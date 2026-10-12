@@ -15,8 +15,11 @@ const PUBLIC_URL = (env.PUBLIC_URL || (env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + 
 const DATA_DIR = env.DATA_DIR || (env.RAILWAY_VOLUME_MOUNT_PATH || path.join(here, 'data'));
 const GM_MODEL = env.GM_MODEL || 'claude-haiku-5-5';
 const TALK_MODEL = env.TALK_MODEL || 'claude-sonnet-5-5';
-const FREE_TURNS = +env.FREE_TURNS || 30;          // free AI turns a day for a Telegram player
-const FREE_TURNS_WEB = +env.FREE_TURNS_WEB || 10;  // free AI turns a day outside Telegram
+const FREE_TURNS = +env.FREE_TURNS || 12;          // free AI turns a day for a Telegram player
+const FREE_TURNS_WEB = +env.FREE_TURNS_WEB || 8;   // free AI turns a day outside Telegram
+// A one-time welcome bank, big enough to finish the first adventure for free.
+const STARTER_TURNS = +env.STARTER_TURNS || 100;
+const STARTER_TURNS_WEB = +env.STARTER_TURNS_WEB || 30;
 // Wallet guards, in dollars of real Claude spend (computed from token usage of every call).
 const DAY_BUDGET = +env.DAY_BUDGET || 3;            // free play stops for everyone after this much spend in a day
 const HARD_DAY_BUDGET = +env.HARD_DAY_BUDGET || 10; // nothing runs after this, paid or not
@@ -62,12 +65,13 @@ function rollDay() {
 }
 function user(key) {
   rollDay();
-  const u = db.users[key] ||= { bonus: 0, passUntil: 0, day: '', used: 0, art: 0, turns: {}, cost: 0, paidTurns: {} };
+  const u = db.users[key] ||= { bonus: 0, passUntil: 0, day: '', used: 0, art: 0, turns: {}, cost: 0, paidTurns: {}, starter: key.startsWith('tg:') ? STARTER_TURNS : STARTER_TURNS_WEB };
+  if (u.starter === undefined) u.starter = 0;
   if (u.day !== db.day) { u.day = db.day; u.used = 0; u.art = 0; u.turns = {}; u.cost = 0; u.paidTurns = {}; }
   u.paidTurns ||= {}; u.cost ||= 0;
   return u;
 }
-const quota = (u, tg) => ({ free: tg ? FREE_TURNS : FREE_TURNS_WEB, used: u.used, bonus: u.bonus, pass: u.passUntil > Date.now() ? u.passUntil : 0, telegram: tg });
+const quota = (u, tg) => ({ free: tg ? FREE_TURNS : FREE_TURNS_WEB, used: u.used, starter: u.starter || 0, bonus: u.bonus, pass: u.passUntil > Date.now() ? u.passUntil : 0, telegram: tg });
 
 /* ---------- Telegram Mini App identity ---------- */
 function tgUser(initData) {
@@ -149,6 +153,7 @@ async function apiAi(req, body) {
       const freeOk = u.used < (me.tg ? FREE_TURNS : FREE_TURNS_WEB) && u.cost < FREE_USER_DAY && db.spend < DAY_BUDGET;
       if (pass) u.paidTurns[turn] = 1;
       else if (freeOk) u.used++;
+      else if (u.starter > 0 && db.spend < DAY_BUDGET) u.starter--;
       else if (u.bonus > 0) { u.bonus--; u.paidTurns[turn] = 1; }
       else if (u.used < (me.tg ? FREE_TURNS : FREE_TURNS_WEB) && db.spend >= DAY_BUDGET) return [429, { error: 'busy_today', quota: quota(u, me.tg) }];
       else return [402, { error: 'limit_reached', quota: quota(u, me.tg) }];
@@ -214,7 +219,7 @@ async function onUpdate(up) {
   if (text.startsWith('/start') || text.startsWith('/play')) {
     await tg('sendMessage', {
       chat_id: m.chat.id,
-      text: '🕯 Пещера Серого Зуба\n\nТёмное фэнтези по правилам настольных ролевых игр 5-й редакции. Пиши что угодно — ИИ-мастер бросит кости и решит, что из этого выйдет.\n\nКаждый день ' + FREE_TURNS + ' ходов бесплатно.',
+      text: '🕯 Пещера Серого Зуба\n\nТёмное фэнтези по правилам настольных ролевых игр 5-й редакции. Пиши что угодно — ИИ-мастер бросит кости и решит, что из этого выйдет.\n\nПервое приключение — бесплатно целиком, а дальше ' + FREE_TURNS + ' бесплатных ходов каждый день.',
       reply_markup: playButton(),
     });
   }
