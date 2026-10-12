@@ -26,7 +26,7 @@ const ITEM_DESC = [[/меч/, 'Длинный меч: хорошая сталь,
   [/факел/, 'Факел: тряпка в смоле на палке. Горит около часа.'], [/огнив/, 'Огниво и кремень: высечь искру и зажечь факел.'], [/вер[её]вк/, 'Пеньковая верёвка, метров пятнадцать. Выдержит человека в кольчуге.'],
   [/краюх|хлеб/, 'Краюха чёрного хлеба. Подсохла, но съедобна.'], [/свист/, 'Медный свисток стражника. Слышно далеко.'], [/карт/, 'Крапленая колода: на рубашке еле заметные метки.'],
   [/пиво|фляг/, 'Фляга крепкого дварфийского пива.'], [/ключ/, 'Тяжёлый железный ключ.'], [/зель/, 'Зелье в стеклянном пузырьке.'], [/гриб/, 'Светящийся гриб. Тина знает, на что он годится.']];
-const describe = name => { const n = String(name).toLowerCase(), d = ITEM_DESC.find(([re]) => re.test(n)); return d ? d[1] : 'Ничего особенного на вид.'; };
+const describe = name => { const n = String(name).toLowerCase(), d = ITEM_DESC.find(([re]) => re.test(n)); return d ? d[1] : `${name[0].toUpperCase()}${name.slice(1)}: ничего особенного на вид.`; };
 
 function renderHeroBar(){
   const H = heroOf(), face = $('hb-face');
@@ -72,7 +72,7 @@ function openBag(){
      ['👁 Осмотреть', null], ['🗑 Выбросить', () => ask(`выбрасываю ${item}`, true)]].forEach(([t, fn]) => {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
       // looking at your own things is free: no master, no dice
-      b.addEventListener('click', () => { if (!fn){ info.textContent = `${item}${inHand}. ${describe(item)}`; return; } close(); fn(); }); acts.append(b);
+      b.addEventListener('click', () => { if (!fn){ info.textContent = describe(item) + inHand; return; } close(); fn(); }); acts.append(b);
     });
   };
   const n = Math.max(10, Math.ceil(S.inventory.length/5)*5);
@@ -106,6 +106,17 @@ function showDice(ck){
     diceTimer = setTimeout(() => { box.className = 'dice'; }, 2200);
   }, 70);
 }
+/* «Говорить»: choose who to talk to among those who are here, the line is then typed after their name */
+function pickTalk(btn){
+  document.querySelector('.talk-pick')?.remove();
+  const here = Object.entries(COMPANIONS).filter(([id, c]) => S.party[id].alive && (S.party[id].joined || (S.party[id].visible && c.place === S.place)));
+  const box = document.createElement('div'); box.className = 'talk-pick';
+  const add = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', () => { box.remove(); fn(); }); box.append(b); };
+  here.forEach(([id, c]) => add(c.name.split(' ')[0], () => ask(`${c.name.split(' ')[0]}, `)));
+  add(here.length ? 'Кому-то ещё…' : 'Сказать вслух…', () => ask('говорю: «»'));
+  btn.closest('.acts').append(box);
+  setTimeout(() => document.addEventListener('click', function off(e){ if (!box.contains(e.target)){ box.remove(); document.removeEventListener('click', off); } }), 0);
+}
 const baseResolve = resolveCheck;
 resolveCheck = (...a) => { const r = baseResolve(...a); showDice(r); return r; };
 const baseHud = renderHud;
@@ -128,13 +139,20 @@ const toggleSheet = on => { root.classList.toggle('sheet-open', on); if (on) $('
 $('hb-face').addEventListener('click', () => { if (root.classList.contains('app')) toggleSheet(true); else $('sheet').scrollIntoView({ behavior: 'smooth', block: 'center' }); });
 $('sheet-x').addEventListener('click', () => toggleSheet(false));
 document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleSheet(false); });
+// after sending, the keyboard closes and the full view comes back
+$('form').addEventListener('submit', () => { $('cmd').blur(); root.classList.remove('typing'); }, true);
+/* settings (sound, music, new game) live behind one ⚙ button in the app layout */
+{ const tools = document.querySelector('.tools'), gear = document.createElement('button');
+  gear.type = 'button'; gear.className = 'btn gear'; gear.textContent = '⚙'; gear.setAttribute('aria-label', 'Настройки'); tools.append(gear);
+  gear.addEventListener('click', e => { e.stopPropagation(); root.classList.toggle('menu-open'); });
+  document.addEventListener('click', e => { if (!tools.contains(e.target) || e.target.id === 'restart') root.classList.remove('menu-open'); }); }
 $('cmd').addEventListener('focus', () => { root.classList.add('typing'); setTimeout(() => { $('journal').scrollTop = 1e9; }, 300); });
 $('cmd').addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== $('cmd')) root.classList.remove('typing'); }, 150));
 document.querySelectorAll('#acts [data-act]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.act;
   if (k === 'attack') ask(S.held && /меч/i.test(S.held) ? 'атакую мечом ближайшего врага' : 'атакую ближайшего врага', true);
-  if (k === 'dodge') ask('ухожу в глухую защиту и уклоняюсь', true);
+  if (k === 'dodge') ask('ухожу в глухую защиту', true);
   if (k === 'hide') ask('пытаюсь спрятаться', true);
-  if (k === 'talk') ask('говорю: «»');
+  if (k === 'talk') pickTalk(b);
   if (k === 'gm') ask('Мастер, ');
 }));

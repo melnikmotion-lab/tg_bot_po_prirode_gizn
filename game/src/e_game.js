@@ -601,7 +601,7 @@ async function act(text){
     if (!code) console.error(e);
     logTurn({ mode: 'error', player: text, raw: String(code || e && e.message || e).slice(0, 500) });
     $('cmd').value = text; renderJournal();
-  } finally { busy = false; $('go').disabled = false; $('cmd').focus({ preventScroll: true }); }
+  } finally { busy = false; $('go').disabled = false; if (!document.documentElement.classList.contains('app')) $('cmd').focus({ preventScroll: true }); }  // on phones the keyboard stays closed after a turn
 }
 function setMode(){
   const m = $('mode');

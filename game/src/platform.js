@@ -91,7 +91,7 @@ function addMic(){
     rec.lang = 'ru-RU'; rec.interimResults = true; rec.maxAlternatives = 1;
     const before = cmd.value ? cmd.value.trim() + ' ' : '';
     rec.onresult = e => { cmd.value = before + [...e.results].map(r => r[0].transcript).join(''); };
-    rec.onend = () => { rec = null; mic.classList.remove('on'); cmd.focus(); };
+    rec.onend = () => { rec = null; mic.classList.remove('on'); };  // no focus: the keyboard must not pop up after speaking
     rec.onerror = () => {};
     mic.classList.add('on'); rec.start();
   });
