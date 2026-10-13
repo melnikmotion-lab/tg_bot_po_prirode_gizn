@@ -146,5 +146,8 @@ function mount(){
   addMic(); refresh();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
-window.Platform = { paywall, telegram: !!tg };
+window.Platform = { paywall, telegram: !!tg, headers, config: () => config, ready,
+  startParam: (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '',
+  newTurn: () => { turnId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); },
+  share: (url, text) => { if (tg && tg.openTelegramLink) tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); else if (navigator.share) navigator.share({ url, text }).catch(() => {}); } };
 })();

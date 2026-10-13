@@ -174,7 +174,7 @@ const saveKey = () => ADV_ID === 'cave' ? SAVE_KEY : SAVE_KEY + '-' + ADV_ID;  /
 try { const raw = localStorage.getItem(saveKey()); S = raw ? JSON.parse(raw) : null; } catch(e){ S = null; }
 const freshStart = !S || !S.places || (S.adv || 'cave') !== ADV_ID;
 if (freshStart) S = newGame('bran');
-function save(){ try { localStorage.setItem(saveKey(), JSON.stringify(S)); } catch(e){} }
+function save(){ if (S && S.mode === 'party'){ partySave(); return; } try { localStorage.setItem(saveKey(), JSON.stringify(S)); } catch(e){} }  // a party game lives on the server
 let LEGACY = [];
 try { LEGACY = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]'); } catch(e){ LEGACY = []; }
 const saveLegacy = () => { try { localStorage.setItem(LEGACY_KEY, JSON.stringify(LEGACY.slice(-3))); } catch(e){} };

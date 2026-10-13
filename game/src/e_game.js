@@ -220,7 +220,7 @@ function combatRound(check, bag, lines, opts = {}){
     }
   }
   const foes = activeFoes(); S.combat = foes.length > 0;
-  if (!foes.length) return;
+  if (!foes.length || opts.noFoes) return;  // in a party game the foes strike after all the heroes
   // companions in the party
   for (const [id, c] of Object.entries(COMPANIONS)){
     const p = S.party[id]; if (!p.joined || !p.alive || p.hp <= 0) continue;
@@ -290,16 +290,13 @@ function lootOk(n, failed){
 
 /* ---------- applying the master's answer ---------- */
 const CRITICAL = { moved: false, fight: false, hurt: false };
-function apply(res, text, bag, mode, preCheck){
-  const t = text.toLowerCase();
-  const narration = cleanStr(res.narration, 1400);
-  const tags = [], lines = [];
+// what the master's answer does to one hero (the current S): dice, health, rest, gold, things, hands, conditions
+function applyHero(res, t, narration, bag, preCheck, tags){
   const useInsp = (res.inspiration === 'use' || (preCheck && preCheck.insp)) && S.inspiration;
   if (useInsp){ S.inspiration = false; tags.push(['Вдохновение потрачено', 'good']); }
   let check = preCheck || null;
   if (!check && res.check && typeof res.check === 'object' && res.check.dc != null){ check = resolveCheck(res.check, bag, useInsp); SFX.dice(); }
   if (res.inspiration === 'grant' && !S.inspiration){ S.inspiration = true; tags.push(['+ Вдохновение', 'good']); }
-  const hpBefore = S.hp, wasCombat = S.combat;
   S.hp = clampInt(S.hp + clampInt(res.hp_delta, -12, 12), 0, S.maxHp);
   if (res.second_wind && S.secondWind){ S.secondWind = false; S.hp = Math.min(S.maxHp, S.hp + bag.d10 + 1); tags.push([`Второе дыхание: +${bag.d10 + 1}`, 'good']); addEffect('heal'); }
   if (res.rest === 'short' && !S.combat){ if (S.hitDice > 0){ S.hitDice--; S.hp = Math.min(S.maxHp, S.hp + Math.max(1, bag.d10 + mod(S.stats['ТЕЛ']))); } S.secondWind = true; tags.push(['Короткий отдых']); }
@@ -330,12 +327,25 @@ function apply(res, text, bag, mode, preCheck){
   if (S.left && !S.inventory.includes(S.left)) S.left = null;
   if (!S.left || !/факел/i.test(S.left)) S.torchLit = false;
   if (check && check.kind === 'attack' && hasItem(/меч/i) && !S.held) S.held = S.inventory.find(i => /меч/i.test(i));
+  // conditions
+  if (Array.isArray(res.conditions_remove)) S.conditions = S.conditions.filter(c => { const gone = res.conditions_remove.includes(c.id); if (gone) tags.push([`снято: ${condName(c.id)}`, 'good']); return !gone; });
+  if (Array.isArray(res.conditions_add)) for (const c of res.conditions_add.slice(0, 3)){
+    const id = typeof c === 'string' ? c : c?.id; if (!CONDITIONS[id]) continue;
+    S.conditions = S.conditions.filter(x => x.id !== id).concat([{ id, turns: c?.turns ? clampInt(c.turns, 1, 10) : 3 }]); tags.push([`состояние: ${condName(id)}`]);
+  }
+  const ex = clampInt(res.exhaustion_delta, -1, 1); if (ex){ S.exhaustion = Math.max(0, Math.min(6, S.exhaustion + ex)); tags.push([`истощение ${S.exhaustion}`]); }
+  return check;
+}
+// what it does to the world around: moving, creatures, characters, facts, effects. checks: this turn's resolved checks
+function applyWorld(res, t, checks, tags){
+  const check = checks.find(c => c && c.success && c.kind !== 'attack') || checks.find(Boolean) || null;
+  const failedStealth = checks.some(c => c && !c.success && /Скрытн/.test(c.skill || ''));
   // places and zones
   const mv = typeof res.move === 'string' ? res.move : res.move && res.move.view;
   CRITICAL.moved = false;
   const blockers = here().enemies.filter(x => !x.hidden && x.type !== 'bat' && !['dead','fled','pacified','asleep'].includes(x.state));
   const slipped = check && check.success && /Скрытн|Обман|Убежд|Запуг|Акробат|Атлет/.test(check.skill || '');
-  if (check && !check.success && /Скрытн/.test(check.skill || '')) here().enemies.forEach(x => { if (!x.hidden && x.state === 'idle') x.state = 'angry'; });
+  if (failedStealth) here().enemies.forEach(x => { if (!x.hidden && x.state === 'idle') x.state = 'angry'; });
   // awake enemies block the way into new places (going back where you came from is allowed)
   if (mv && S.places[mv] && !S.places[mv].visited && blockers.length && !slipped){ tags.push([`${blockers[0].name} не даёт пройти`]); blockers.forEach(x => { if (x.state === 'idle') x.state = 'angry'; }); res.move = null; }
   const mv2 = typeof res.move === 'string' ? res.move : res.move && res.move.view;
@@ -353,7 +363,7 @@ function apply(res, text, bag, mode, preCheck){
   const canDefeat = !!(check && check.success && check.kind !== 'attack');
   const hiddenBefore = new Set(here().enemies.filter(e => e.hidden || e.state === 'idle' || e.state === 'asleep'));
   if (Array.isArray(res.enemies)) patchEnemies(res.enemies, canDefeat);
-  const fresh = new Set([...hiddenBefore].filter(e => !e.hidden && ['angry','hurt'].includes(e.state) && !(check && check.kind === 'attack')));
+  const fresh = new Set([...hiddenBefore].filter(e => !e.hidden && ['angry','hurt'].includes(e.state) && !checks.some(c => c && c.kind === 'attack')));
   if (Array.isArray(res.party)) for (const u of res.party){
     const st = S.party[u?.id]; if (!st) continue;
     if (u.met === true) st.met = true;
@@ -361,32 +371,15 @@ function apply(res, text, bag, mode, preCheck){
     if (u.visible === false && !st.joined) st.visible = false;
     if (u.joined === true && !ADV.noJoin && !st.joined && st.met && /(пойд|пошли|идём|идем|со мной|присоедин|вместе|помож)/.test(t)){ st.joined = true; tags.push([`${COMPANIONS[u.id].name} в отряде`, 'good']); }
   }
-  // conditions
-  if (Array.isArray(res.conditions_remove)) S.conditions = S.conditions.filter(c => { const gone = res.conditions_remove.includes(c.id); if (gone) tags.push([`снято: ${condName(c.id)}`, 'good']); return !gone; });
-  if (Array.isArray(res.conditions_add)) for (const c of res.conditions_add.slice(0, 3)){
-    const id = typeof c === 'string' ? c : c?.id; if (!CONDITIONS[id]) continue;
-    S.conditions = S.conditions.filter(x => x.id !== id).concat([{ id, turns: c?.turns ? clampInt(c.turns, 1, 10) : 3 }]); tags.push([`состояние: ${condName(id)}`]);
-  }
-  const ex = clampInt(res.exhaustion_delta, -1, 1); if (ex){ S.exhaustion = Math.max(0, Math.min(6, S.exhaustion + ex)); tags.push([`истощение ${S.exhaustion}`]); }
   if (Array.isArray(res.remember)) for (const f of res.remember.slice(0, 1)){ const s = cleanStr(f, 160); if (s) S.chronicle.push(s); }
   if (S.chronicle.length > 30) S.chronicle.splice(0, S.chronicle.length - 30);
   if (res.chest_taken === true && S.place === 'lair' && !activeFoes().length) S.chestTaken = true;
   if (res.legacy_found === true) S.legacyFound = true;
-  if (res.effect && !(check && check.kind === 'attack')){ addEffect(res.effect); if (FX_SOUND[res.effect]) SFX[FX_SOUND[res.effect]](); }
-  // the fight: player's hit, then companions, then enemies
-  const dodge = /уклоня|уклонени/.test(t) && !(check && check.kind === 'attack');
-  S.overkill = 0;
-  combatRound(check, bag, lines, { fresh, dodge });
-  CRITICAL.fight = S.combat && !wasCombat; CRITICAL.hurt = S.hp < hpBefore;
-  // Skrip peeks out by himself if nobody notices him
-  S.turnsHere++;
-  let peek = null;
-  if (S.place === 'clearing' && !S.party.skrip.visible && S.turnsHere >= 3){ S.party.skrip.visible = true; peek = 'Ягодный куст шевелится, и из него высовывается тощий гоблин в бурой шапке. Он замирает с недогрызенной репой во рту.'; }
-  // conditions tick
-  S.conditions = S.conditions.map(c => c.turns ? { ...c, turns: c.turns - 1 } : c).filter(c => c.turns === null || c.turns > 0);
-  if (res.game_over === 'death' && S.hp > 0) res.game_over = null;  // only hit points decide death
-  if (S.hp <= 0 && !dropToZero(lines)) res.game_over = 'death';
-  if (S.exhaustion >= 6) res.game_over = 'death';
+  if (res.effect && !checks.some(c => c && c.kind === 'attack')){ addEffect(res.effect); if (FX_SOUND[res.effect]) SFX[FX_SOUND[res.effect]](); }
+  return fresh;
+}
+// the adventure clock and endings: the game checks that an ending really can happen here
+function applyClock(res, tags){
   // adventure clock and endings: the game checks that an ending really can happen here
   let ending = null;
   if (ADV.endings){
@@ -402,6 +395,29 @@ function apply(res, text, bag, mode, preCheck){
   }
   if (ADV_ID === 'cave' && res.game_over === 'win' && !S.chestTaken) res.game_over = null;
   if (['win','death','lose'].includes(res.game_over)) S.over = res.game_over;
+}
+function apply(res, text, bag, mode, preCheck){
+  const t = text.toLowerCase();
+  const narration = cleanStr(res.narration, 1400);
+  const tags = [], lines = [];
+  const hpBefore = S.hp, wasCombat = S.combat;
+  const check = applyHero(res, t, narration, bag, preCheck, tags);
+  const fresh = applyWorld(res, t, [check], tags);
+  // the fight: player's hit, then companions, then enemies
+  const dodge = /уклоня|уклонени/.test(t) && !(check && check.kind === 'attack');
+  S.overkill = 0;
+  combatRound(check, bag, lines, { fresh, dodge });
+  CRITICAL.fight = S.combat && !wasCombat; CRITICAL.hurt = S.hp < hpBefore;
+  // Skrip peeks out by himself if nobody notices him
+  S.turnsHere++;
+  let peek = null;
+  if (S.place === 'clearing' && !S.party.skrip.visible && S.turnsHere >= 3){ S.party.skrip.visible = true; peek = 'Ягодный куст шевелится, и из него высовывается тощий гоблин в бурой шапке. Он замирает с недогрызенной репой во рту.'; }
+  // conditions tick
+  S.conditions = S.conditions.map(c => c.turns ? { ...c, turns: c.turns - 1 } : c).filter(c => c.turns === null || c.turns > 0);
+  if (res.game_over === 'death' && S.hp > 0) res.game_over = null;  // only hit points decide death
+  if (S.hp <= 0 && !dropToZero(lines)) res.game_over = 'death';
+  if (S.exhaustion >= 6) res.game_over = 'death';
+  applyClock(res, tags);
   if (S.hp !== hpBefore) tags.push([`${S.hp > hpBefore ? '+' : ''}${S.hp - hpBefore} здоровья`, S.hp > hpBefore ? 'good' : '']);
   // unsolicited companion lines only at critical moments, and rarely
   const whoId = w => COMPANIONS[w] ? w : Object.keys(COMPANIONS).find(id => w && (NAME_RE[id].test(String(w)) || String(w).toLowerCase() === COMPANIONS[id].name.toLowerCase()));
@@ -661,12 +677,14 @@ function renderJournal(){
     }
     if (e.who === 'gm' && !e.text && !e.check) continue;
     const d = document.createElement('div'); d.className = 'entry ' + e.who;
+    if (e.checks) e.checks.forEach(c => { const r = document.createElement('div'); r.className = 'roll ' + (c.success ? 'ok' : 'fail'); r.textContent = c.line || checkLine(c); d.append(r); });
+    if (e.who === 'you' && e.by && S.heroes && S.heroes[e.by]){ const b = document.createElement('b'); b.textContent = S.heroes[e.by].name + ': '; d.append(b); }
     if (e.check){ const c = document.createElement('div'); c.className = 'roll ' + (e.check.success ? 'ok' : 'fail'); c.textContent = checkLine(e.check); d.append(c, document.createElement('br')); }
     if (e.text) d.append(document.createTextNode(e.text));
     if (e.tags && e.tags.length){ const tg = document.createElement('div'); tg.className = 'tags'; e.tags.forEach(([t, k]) => { const s = document.createElement('span'); s.className = 'tag' + (k ? ' ' + k : ''); s.textContent = t; tg.append(s); }); d.append(tg); }
     j.append(d);
   }
-  if (S.over){ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn again'; b.textContent = '⚔ Новая игра'; b.addEventListener('click', () => chooseHero(startGame)); j.append(b); }
+  if (S.over && !(partyOn() && !amHost())){ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn again'; b.textContent = partyOn() ? '⚔ Ещё раз этим отрядом' : '⚔ Новая игра'; b.addEventListener('click', () => partyOn() ? partyStart() : chooseHero(startGame)); j.append(b); }
   j.scrollTop = j.scrollHeight;
 }
 function renderAll(){ renderHud(); renderJournal(); }
@@ -675,6 +693,7 @@ const ERR = { not_granted:'Ты не разрешил странице обра�
 async function act(text){
   text = cleanStr(text, 240); if (!text || busy) return;
 
+  if (partyOn()) return partySubmit(text);
   if (S.over){ S.journal.push({ who: 'sys', text: 'Игра окончена. Начни новую — кнопка ниже.' }); renderJournal(); return; }
   busy = true; $('go').disabled = true; $('cmd').value = '';
   S.journal.push({ who: 'you', text }); renderJournal();
@@ -732,7 +751,10 @@ function setMode(){
   if (sample){ m.className = 'mode'; m.textContent = 'Мастер на связи. Пиши что угодно — он бросит кости по правилам 5e и рассчитает последствия.'; $('tier').disabled = false; }
   else { m.className = 'mode off'; m.textContent = 'Мастер недоступен, включён упрощённый режим: работают только простые команды.'; $('tier').disabled = true; }
 }
-function restart(){ chooseHero(startGame, !S.over && S.turn > 0); }
+function restart(){
+  if (partyOn()){ if (S.over && amHost()) partyStart(); else if (confirm('Выйти из отряда? Друзья продолжат без тебя.')) roomLeave(); return; }
+  chooseHero(startGame, !S.over && S.turn > 0);
+}
 function startGame(heroId){
   S = newGame(heroId); parts = []; diceShow = null;
   const H = heroOf(), line = STATS.map(([k]) => `${k} ${S.stats[k]}`).join(', ');
@@ -756,6 +778,7 @@ function chooseHero(done, cancellable){
     advRow.append(b);
   });
   const h0 = document.createElement('h2'); h0.textContent = 'Приключение'; box.append(h0, advRow);
+  if (window.Platform){ const tg = document.createElement('button'); tg.type = 'button'; tg.className = 'btn together'; tg.textContent = '👥 Играть вместе — до четырёх друзей'; tg.addEventListener('click', () => { back.remove(); roomCreate(); }); box.append(tg); }
   const h = document.createElement('h2'); h.textContent = 'Герой'; box.append(h);
   const opts = [...Object.entries(HEROES), ['custom', { name: 'Свой герой', title: 'случайный воин', race: '', pitch: 'Характеристики выпадут на костях. Без прошлого: историю напишешь сам.', stats: null, skills: FIGHTER_SKILLS }]];
   opts.forEach(([id, H]) => {
@@ -779,7 +802,8 @@ $('form').addEventListener('submit', e => { e.preventDefault(); act($('cmd').val
 $('restart').addEventListener('click', restart);
 $('sound').addEventListener('click', () => setSound(!AU.on));
 $('music').addEventListener('click', () => setMusic(!MU.on));
-if (freshStart){ renderAll(); restart(); } else renderAll();
+if (ROOM.code) renderAll();   // a party game: the room sends the state
+else if (freshStart){ renderAll(); restart(); } else renderAll();
 requestAnimationFrame(frame);
 (async () => { try { sample = window.claude ? await window.claude.use('sample') : null; } catch(e){ sample = null; } setMode(); })();
 (async () => { try { DB = window.claude ? await window.claude.use('db') : null; } catch(e){ DB = null; } })();

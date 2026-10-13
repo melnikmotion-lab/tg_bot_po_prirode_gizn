@@ -88,7 +88,7 @@ function tgUser(initData) {
 }
 function who(req) {
   const tu = tgUser(req.headers['x-tg-init']);
-  if (tu && tu.id) return { key: 'tg:' + tu.id, tg: true, name: tu.username || tu.first_name || '' };
+  if (tu && tu.id) return { key: 'tg:' + tu.id, tg: true, name: tu.first_name || tu.username || '' };
   const g = String(req.headers['x-guest'] || '').replace(/[^\w-]/g, '').slice(0, 40);
   return { key: 'web:' + (g || 'anon'), tg: false, ip: clientIp(req) };
 }
@@ -232,6 +232,12 @@ async function onUpdate(up) {
     await tg('sendMessage', { chat_id: m.chat.id, text: 'Проблема с оплатой? Напиши, что случилось' + (SUPPORT ? `: ${SUPPORT}` : ' прямо сюда, в этот чат.') + ' Если покупка не зачислилась, вернём звёзды.' });
     return;
   }
+  const inv = /^\/start\s+room_([A-Z0-9]{5})/i.exec(text);
+  if (inv) {
+    await tg('sendMessage', { chat_id: m.chat.id, text: `🕯 Тебя зовут в отряд. Комната ${inv[1].toUpperCase()}: жми «Войти», выбери героя и жди, пока ведущий начнёт.`,
+      reply_markup: { inline_keyboard: [[{ text: '⚔️ Войти в отряд', web_app: { url: `${playUrl()}&room=${inv[1].toUpperCase()}` } }]] } });
+    return;
+  }
   if (text.startsWith('/start') || text.startsWith('/play')) {
     const u = user('tg:' + m.from.id); if (u.dmOff) { u.dmOff = false; persist(); }
     await tg('sendMessage', {
@@ -280,6 +286,99 @@ async function setupBot() {
   } catch (e) { console.error('bot setup failed:', e.message); }
 }
 
+/* ---------- rooms: up to four players in one game ---------- */
+// One member's page (the host) runs the game engine and talks to the master; the others send their actions
+// here and get the shared state back. The host is the first member who is online, so if the host leaves,
+// the next one takes over from the last saved state and the actions still waiting in the queue.
+const ROOM_MAX = 4, ROOM_TTL = 3 * 86400000;
+db.rooms ||= {};
+const rooms = new Map();
+for (const [code, r] of Object.entries(db.rooms)) {
+  if (Date.now() - (r.touched || 0) > ROOM_TTL) { delete db.rooms[code]; continue; }
+  rooms.set(code, { ...r, clients: new Set(), members: r.members.map(m => ({ ...m, conns: 0 })) });
+}
+function roomCode() {
+  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for (;;) { const c = Array.from({ length: 5 }, () => A[crypto.randomInt(A.length)]).join(''); if (!rooms.has(c)) return c; }
+}
+const hostOf = r => (r.members.find(m => m.conns > 0) || r.members[0]).pid;
+const roomView = r => ({ code: r.code, adv: r.adv, host: hostOf(r), timer: r.timer, started: r.started,
+  members: r.members.map(m => ({ pid: m.pid, name: m.name, hero: m.hero, online: m.conns > 0 })) });
+function saveRoom(r) {
+  r.touched = Date.now();
+  const { clients, ...keep } = r;
+  db.rooms[r.code] = { ...keep, members: r.members.map(({ conns, ...m }) => m) };
+  persist();
+}
+function emit(r, type, data) {
+  const line = JSON.stringify({ type, data }) + '\n';
+  for (const c of r.clients) { try { c.write(line); } catch {} }
+}
+const memberOf = (r, me) => r.members.find(m => m.key === me.key);
+setInterval(() => { for (const r of rooms.values()) for (const c of r.clients) { try { c.write('\n'); } catch {} } }, 20000);
+
+async function roomApi(req, res, url) {
+  const me = who(req), body = await readBody(req, 1500000);
+  const name = cleanName(body.name || me.name) || 'Игрок';
+  if (url.pathname === '/api/room/create') {
+    const r = { code: roomCode(), adv: String(body.adv || 'bell').slice(0, 20), created: Date.now(), timer: 60, started: false,
+      members: [{ key: me.key, name, pid: 'p1', hero: null, conns: 0 }], queue: [], chat: [], state: null, nextId: 1, clients: new Set() };
+    rooms.set(r.code, r); saveRoom(r);
+    return send(res, 200, { code: r.code, pid: 'p1' });
+  }
+  const r = rooms.get(String(body.code || '').toUpperCase().trim());
+  if (!r) return send(res, 404, { error: 'room_not_found' });
+  let m = memberOf(r, me);
+  if (url.pathname === '/api/room/join') {
+    if (!m) {
+      if (r.started) return send(res, 409, { error: 'room_started' });
+      if (r.members.length >= ROOM_MAX) return send(res, 409, { error: 'room_full' });
+      const used = new Set(r.members.map(x => x.pid));
+      m = { key: me.key, name, pid: ['p1','p2','p3','p4'].find(p => !used.has(p)), hero: null, conns: 0 };
+      r.members.push(m); saveRoom(r); emit(r, 'room', roomView(r));
+    }
+    return send(res, 200, { code: r.code, pid: m.pid, adv: r.adv });
+  }
+  if (!m) return send(res, 403, { error: 'not_in_room' });
+  if (url.pathname === '/api/room/stream') {
+    // one long response, a JSON object per line: the room, the state, the waiting actions, then live events
+    res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
+    r.clients.add(res); m.conns++;
+    res.write(JSON.stringify({ type: 'hello', data: { room: roomView(r), you: m.pid, state: r.state, queue: r.queue, chat: r.chat.slice(-30) } }) + '\n');
+    emit(r, 'room', roomView(r));
+    res.on('close', () => { r.clients.delete(res); m.conns = Math.max(0, m.conns - 1); emit(r, 'room', roomView(r)); });
+    return;
+  }
+  if (url.pathname !== '/api/room/send') return send(res, 404, { error: 'not_found' });
+  const isHost = hostOf(r) === m.pid, t = body.type;
+  if (t === 'pick' && !r.started) {
+    const hero = body.hero == null ? null : String(body.hero).slice(0, 20);
+    if (hero && hero !== 'custom' && r.members.some(x => x !== m && x.hero === hero)) return send(res, 409, { error: 'hero_taken' });
+    m.hero = hero; saveRoom(r); emit(r, 'room', roomView(r));
+  } else if (t === 'timer' && isHost) {
+    r.timer = Math.max(30, Math.min(120, +body.sec || 60)); saveRoom(r); emit(r, 'room', roomView(r));
+  } else if ((t === 'start' || t === 'state') && isHost && body.state && typeof body.state === 'object') {
+    if (t === 'start') r.started = true;
+    r.state = body.state;
+    const ack = new Set(Array.isArray(body.ack) ? body.ack : []);
+    if (ack.size) r.queue = r.queue.filter(a => !ack.has(a.id));
+    saveRoom(r); emit(r, 'state', { state: r.state, ack: [...ack], room: t === 'start' ? roomView(r) : undefined });
+  } else if (t === 'act' && r.started) {
+    const a = { id: r.nextId++, pid: m.pid, kind: body.kind === 'bag' ? 'bag' : 'act', text: String(body.text || '').slice(0, 240), item: body.item ? String(body.item).slice(0, 40) : undefined, label: body.label ? String(body.label).slice(0, 40) : undefined, at: Date.now() };
+    if (!a.text && a.kind === 'act') return send(res, 400, { error: 'invalid_request' });
+    if (r.queue.length > 40) return send(res, 429, { error: 'rate_limited' });
+    r.queue.push(a); saveRoom(r); emit(r, 'act', a);
+  } else if (t === 'chat') {
+    const c = { pid: m.pid, name: m.name, text: String(body.text || '').slice(0, 300), at: Date.now() };
+    if (!c.text.trim()) return send(res, 400, { error: 'invalid_request' });
+    r.chat.push(c); if (r.chat.length > 60) r.chat.shift(); saveRoom(r); emit(r, 'chat', c);
+  } else if (t === 'typing') {
+    emit(r, 'typing', { pid: m.pid });
+  } else return send(res, 400, { error: 'invalid_request' });
+  return send(res, 200, { ok: true });
+}
+const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24);
+
 /* ---------- http ---------- */
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.json': 'application/json', '.ico': 'image/x-icon' };
 const PUB = path.join(here, 'public');
@@ -318,6 +417,7 @@ const server = http.createServer(async (req, res) => {
       if (!started) return send(res, code, obj);
       return res.end(JSON.stringify(code === 200 ? { done: true, ...obj } : { ...obj, error: obj.error || 'upstream_error' }) + '\n');
     }
+    if (req.method === 'POST' && url.pathname.startsWith('/api/room/')) return await roomApi(req, res, url);
     if (req.method === 'POST' && url.pathname === '/api/log') {
       const me = who(req), body = await readBody(req, 40000);
       logLine({ type: 'turn', user: me.key, ...body });

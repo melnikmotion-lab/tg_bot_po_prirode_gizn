@@ -52,6 +52,24 @@ function renderHeroBar(){
   const bb = $('bagbtn'); if (!bb.querySelector('img')){ const im = document.createElement('img'); im.src = ART.icon.bag; im.alt = ''; bb.prepend(im); }
 }
 
+// what can be done with a thing in the bag without the master; doInv(said, told, change) carries it out
+function bagActions(item, doInv){
+  const side = S.held === item ? 'held' : S.left === item ? 'left' : null;
+  const list = [];
+  if (!S.inventory.includes(item)){
+    const ground = here().ground || [], gi = ground.indexOf(item);
+    if (gi >= 0) list.push(['⤴ Подобрать', () => doInv(`подбираю ${item}`, `Подобрано: ${item}.`, () => { ground.splice(ground.indexOf(item), 1); S.inventory.push(item); })]);
+    return list;
+  }
+  if (side) list.push(['📥 Убрать в сумку', () => doInv(`убираю ${item} в сумку`, `${cap(item)} — в сумке.`, () => setHand(side, null))]);
+  else if (HOLDABLE.test(item)) list.push(['✋ Взять в руку', () => doInv(`беру в руку ${item}`, `Теперь в руке: ${item}.`, () => setHand(LEFT_HAND.test(item) ? 'left' : 'held', item))]);
+  if (/огнив/i.test(item) && hasItem(/факел/i) && !torchLit()) list.push(['🔥 Зажечь факел', () => doInv('зажигаю факел огнивом', 'Искра, другая — и факел занимается огнём.', () => { setHand('left', S.inventory.find(i => /факел/i.test(i))); S.torchLit = true; SFX.torch(); })]);
+  if (/факел/i.test(item) && torchLit()) list.push(['💨 Погасить', () => doInv('гашу факел', 'Факел погас. Темнота подступает ближе.', () => { S.torchLit = false; })]);
+  if (!WORN.test(item)) list.push(['🗑 Выбросить', () => doInv(`выбрасываю ${item}`, `Брошено на землю: ${item}.`, () => {
+    if (S.held === item) S.held = null; if (S.left === item){ S.left = null; if (/факел/i.test(item)) S.torchLit = false; }
+    S.inventory.splice(S.inventory.indexOf(item), 1); (here().ground ||= []).push(item); })]);
+  return list;
+}
 function openBag(){
   if (document.querySelector('.bag-back')) return;
   const back = document.createElement('div'); back.className = 'bag-back';
@@ -70,17 +88,9 @@ function openBag(){
     const inHand = item === S.held ? ' (в правой руке)' : item === S.left ? ' (в левой руке)' : '';
     info.textContent = item + inHand;
     acts.textContent = '';
-    const side = S.held === item ? 'held' : S.left === item ? 'left' : null;
-    const list = [];
-    if (side) list.push(['📥 Убрать в сумку', () => invAct(`убираю ${item} в сумку`, `${cap(item)} — в сумке.`, () => setHand(side, null))]);
-    else if (HOLDABLE.test(item)) list.push(['✋ Взять в руку', () => invAct(`беру в руку ${item}`, `Ты берёшь в руку: ${item}.`, () => setHand(LEFT_HAND.test(item) ? 'left' : 'held', item))]);
-    if (/огнив/i.test(item) && hasItem(/факел/i) && !torchLit()) list.push(['🔥 Зажечь факел', () => invAct('зажигаю факел огнивом', 'Искра, другая — и факел занимается огнём.', () => { setHand('left', S.inventory.find(i => /факел/i.test(i))); S.torchLit = true; SFX.torch(); })]);
-    if (/факел/i.test(item) && torchLit()) list.push(['💨 Погасить', () => invAct('гашу факел', 'Ты гасишь факел. Темнота подступает ближе.', () => { S.torchLit = false; })]);
-    list.push(['⚙ Использовать…', () => { close(); ask(`использую ${item} `); }]);
-    list.push(['👁 Осмотреть', () => { info.textContent = describe(item) + inHand; }]);
-    if (!WORN.test(item)) list.push(['🗑 Выбросить', () => invAct(`выбрасываю ${item}`, `Ты бросаешь на землю: ${item}.`, () => {
-      if (S.held === item) S.held = null; if (S.left === item){ S.left = null; if (/факел/i.test(item)) S.torchLit = false; }
-      S.inventory.splice(S.inventory.indexOf(item), 1); (here().ground ||= []).push(item); })]);
+    const list = bagActions(item, invAct).map(([t, fn]) => [t, partyOn() ? () => { partyBag(item, t); close(); } : fn]);
+    const drop = list.findIndex(([t]) => /Выбросить/.test(t));
+    list.splice(drop < 0 ? list.length : drop, 0, ['⚙ Использовать…', () => { close(); ask(`использую ${item} `); }], ['👁 Осмотреть', () => { info.textContent = describe(item) + inHand; }]);
     list.forEach(([t, fn]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.addEventListener('click', fn); acts.append(b); });
   };
   // Things done with your own bag are instant and free: no master, no dice. The master still learns about them from the history.
@@ -103,7 +113,7 @@ function openBag(){
   if (ground.length){
     const gh = document.createElement('b'); gh.textContent = 'На земле'; gWrap.append(gh);
     ground.forEach((g, gi) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ground-item'; b.append(iconEl(g)); b.append(document.createTextNode(` ${g} — подобрать`));
-      b.addEventListener('click', () => invAct(`подбираю ${g}`, `Ты подбираешь: ${g}.`, () => { ground.splice(gi, 1); S.inventory.push(g); })); gWrap.append(b); });
+      b.addEventListener('click', () => { if (partyOn()){ partyBag(g, '⤴ Подобрать'); close(); return; } invAct(`подбираю ${g}`, `Ты подбираешь: ${g}.`, () => { ground.splice(gi, 1); S.inventory.push(g); }); }); gWrap.append(b); });
   }
   box.append(head, grid, info, acts, gWrap); back.append(box); document.body.append(back);
   x.addEventListener('click', close); back.addEventListener('click', e => { if (e.target === back) close(); });
