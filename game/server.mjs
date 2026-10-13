@@ -17,14 +17,14 @@ const GM_MODEL = env.GM_MODEL || 'claude-haiku-5-5';
 const TALK_MODEL = env.TALK_MODEL || 'claude-sonnet-5-5';
 const FREE_TURNS = +env.FREE_TURNS || 12;          // free AI turns a day for a Telegram player
 const FREE_TURNS_WEB = +env.FREE_TURNS_WEB || 8;   // free AI turns a day outside Telegram
-// A one-time welcome bank, big enough to finish the first adventure for free.
-const STARTER_TURNS = +env.STARTER_TURNS || 100;
+// A one-time welcome bank: the opening of the first adventure, up to its first night.
+const STARTER_TURNS = +env.STARTER_TURNS || 40;
 const STARTER_TURNS_WEB = +env.STARTER_TURNS_WEB || 30;
 // Wallet guards, in dollars of real Claude spend (computed from token usage of every call).
 const DAY_BUDGET = +env.DAY_BUDGET || 3;            // free play stops for everyone after this much spend in a day
 const HARD_DAY_BUDGET = +env.HARD_DAY_BUDGET || 10; // nothing runs after this, paid or not
 const FREE_USER_DAY = +env.FREE_USER_DAY || 0.10;   // one free player's spend a day
-const PASS_USER_DAY = +env.PASS_USER_DAY || 0.10;   // one unlimited-pass player's spend a day (the pass brings ~$0.11 a day)
+const PASS_USER_DAY = +env.PASS_USER_DAY || 0.10;   // one unlimited-pass player's spend a day (the pass brings ~$0.2 a day)
 // $ per million tokens: input, output. Cache writes cost 1.25x input, cache reads 0.1x.
 const PRICES = { 'claude-haiku-5-5': [0.10, 0.50], 'claude-sonnet-5-5': [2, 10], 'claude-opus-5-5': [4, 20] };
 function costOf(model, us) {
@@ -34,8 +34,8 @@ function costOf(model, us) {
 const ADMIN_KEY = env.ADMIN_KEY || '';
 const SUPPORT = env.SUPPORT_CONTACT || '';
 const PRODUCTS = {
-  turns50: { title: '+50 ходов', description: '50 дополнительных ходов мастера. Не сгорают.', stars: +env.PRICE_TURNS50 || 50, turns: 50 },
-  month: { title: '30 дней без лимита', description: 'Играй сколько хочешь 30 дней.', stars: +env.PRICE_MONTH || 250, days: 30 },
+  turns50: { title: '+50 ходов', description: '50 дополнительных ходов мастера. Не сгорают.', stars: +env.PRICE_TURNS50 || 75, turns: 50 },
+  month: { title: '30 дней без лимита', description: 'Играй сколько хочешь 30 дней.', stars: +env.PRICE_MONTH || 500, days: 30 },
 };
 
 const anthropic = env.ANTHROPIC_API_KEY ? new Anthropic() : null;
@@ -130,6 +130,12 @@ async function callClaude(prompt, kind, paid) {
   return { data, usage: msg.usage, model: msg.model };
 }
 
+// A Telegram player who ran out of turns gets one note in the bot the next day (see remindLoop).
+function blocked(u, me, code) {
+  if (me.tg) u.remindDay = db.day;
+  return [code === 'limit_reached' ? 402 : 429, { error: code, quota: quota(u, me.tg) }];
+}
+
 async function apiAi(req, body) {
   const me = who(req);
   const prompt = String(body.prompt || '');
@@ -138,7 +144,7 @@ async function apiAi(req, body) {
   if (!anthropic) return [503, { error: 'sampling_disabled' }];
   const u = user(me.key);
   const pass = u.passUntil > Date.now();
-  if (db.spend >= HARD_DAY_BUDGET) return [429, { error: 'busy_today', quota: quota(u, me.tg) }];
+  if (db.spend >= HARD_DAY_BUDGET) return blocked(u, me, 'busy_today');
   if (pass && u.cost >= PASS_USER_DAY) return [429, { error: 'fair_use', quota: quota(u, me.tg) }];
   if (!me.tg) {
     const n = db.ips[me.ip] = (db.ips[me.ip] || 0) + 1;
@@ -155,8 +161,8 @@ async function apiAi(req, body) {
       else if (freeOk) u.used++;
       else if (u.starter > 0 && db.spend < DAY_BUDGET) u.starter--;
       else if (u.bonus > 0) { u.bonus--; u.paidTurns[turn] = 1; }
-      else if (u.used < (me.tg ? FREE_TURNS : FREE_TURNS_WEB) && db.spend >= DAY_BUDGET) return [429, { error: 'busy_today', quota: quota(u, me.tg) }];
-      else return [402, { error: 'limit_reached', quota: quota(u, me.tg) }];
+      else if (u.used < (me.tg ? FREE_TURNS : FREE_TURNS_WEB) && db.spend >= DAY_BUDGET) return blocked(u, me, 'busy_today');
+      else return blocked(u, me, 'limit_reached');
       u.turns[turn] = 0;
     }
     if (++u.turns[turn] > 4) return [429, { error: 'rate_limited', quota: quota(u, me.tg) }];
@@ -220,13 +226,41 @@ async function onUpdate(up) {
     return;
   }
   if (text.startsWith('/start') || text.startsWith('/play')) {
+    const u = user('tg:' + m.from.id); if (u.dmOff) { u.dmOff = false; persist(); }
     await tg('sendMessage', {
       chat_id: m.chat.id,
-      text: '🕯 Пещера Серого Зуба\n\nТёмное фэнтези по правилам настольных ролевых игр 5-й редакции. Пиши что угодно — ИИ-мастер бросит кости и решит, что из этого выйдет.\n\nПервое приключение — бесплатно целиком, а дальше ' + FREE_TURNS + ' бесплатных ходов каждый день.',
+      text: '🕯 Пещера Серого Зуба\n\nТёмное фэнтези по правилам настольных ролевых игр 5-й редакции. Пиши что угодно — ИИ-мастер бросит кости и решит, что из этого выйдет.\n\nДля начала — ' + STARTER_TURNS + ' ходов в подарок, а дальше ' + FREE_TURNS + ' бесплатных ходов каждый день.',
       reply_markup: playButton(),
     });
   }
 }
+// Once a day, after 09:00 Moscow, tell players who hit the limit yesterday that the master is back.
+// At most one note in three days per player, none if they already came back on their own,
+// and never again to someone who blocked the bot.
+const REMIND_GAP = 3 * 86400000;
+async function remindLoop() {
+  if (!BOT_TOKEN || !anthropic) return;
+  const h = new Date().getUTCHours();
+  if (h < 6 || h >= 18) return;
+  rollDay();
+  for (const [key, u] of Object.entries(db.users)) {
+    if (!u.remindDay || u.remindDay >= db.day || !key.startsWith('tg:')) continue;
+    u.remindDay = '';
+    if (u.dmOff || (u.day === db.day && u.used) || Date.now() - (u.remindedAt || 0) < REMIND_GAP) continue;
+    if (u.passUntil > Date.now()) continue;
+    u.remindedAt = Date.now(); persist();
+    try {
+      await tg('sendMessage', { chat_id: key.slice(3), text: `🕯 Мастер отдохнул. У тебя снова ${FREE_TURNS} бесплатных ходов — герои ждут у костра.`, reply_markup: playButton() });
+      logLine({ type: 'remind', user: key });
+    } catch (e) {
+      if (/blocked|deactivated|chat not found|403/i.test(e.message)) u.dmOff = true;
+      logLine({ type: 'remind_error', user: key, err: e.message.slice(0, 200) });
+    }
+    await new Promise(r => setTimeout(r, 60));  // stay well under Telegram's 30 messages a second
+  }
+  persist();
+}
+
 async function setupBot() {
   if (!BOT_TOKEN) { console.warn('BOT_TOKEN is not set: Telegram bot is off'); return; }
   try {
@@ -321,4 +355,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => { console.log(`Grey Fang on :${PORT}`); setupBot(); });
+server.listen(PORT, () => {
+  console.log(`Grey Fang on :${PORT}`); setupBot();
+  setInterval(() => remindLoop().catch(e => console.error('remind failed:', e.message)), 15 * 60000);
+});

@@ -46,13 +46,24 @@ function setQuota(q){
   if (q.pass) badge.textContent = '∞ ходов до ' + new Date(q.pass).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
   else { const left = Math.max(0, q.free - q.used) + (q.starter || 0) + q.bonus; badge.textContent = 'Ходов: ' + left; badge.classList.toggle('low', left <= 5); }
 }
-function paywall(){
+// reason: why the window opened — 'limit_reached' (out of turns), 'busy_today' (free play paused for everyone), or none (the badge).
+function paywall(reason){
   if (document.querySelector('.pw-back')) return;
   const back = el('div', 'pw-back'), box = el('div', 'pw');
   box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
-  box.append(el('h2', null, 'Ещё ходов?'));
-  const used = Q ? `Каждый день — ${Q.free} бесплатных ходов, они обновляются каждые сутки.` : 'Бесплатные ходы обновляются каждые сутки.';
-  box.append(el('p', null, used));
+  const free = Q ? Q.free : 'новые';
+  const note = tg ? ' Я напишу тебе в бот, когда он отдохнёт.' : '';
+  if (reason === 'busy_today'){
+    box.append(el('h2', null, '🕯 Мастер устал'));
+    box.append(el('p', null, 'Сегодня у костра слишком много героев, и мастер выдохся. Бесплатная игра вернётся завтра.' + note));
+  } else if (reason === 'limit_reached'){
+    box.append(el('h2', null, '🕯 Мастер отдыхает'));
+    box.append(el('p', null, `Ходы на сегодня кончились. Завтра будет ${free} бесплатных ходов.` + note));
+  } else {
+    box.append(el('h2', null, 'Ещё ходов?'));
+    box.append(el('p', null, Q ? `Каждый день — ${Q.free} бесплатных ходов, они обновляются каждые сутки.` : 'Бесплатные ходы обновляются каждые сутки.'));
+  }
+  if (reason && tg && config.products.length) box.append(el('p', null, 'А продолжить можно прямо сейчас:'));
   if (tg){
     config.products.forEach(p => {
       const b = el('button', 'pw-buy'); b.type = 'button';
@@ -102,7 +113,7 @@ function mount(){
   const tools = document.querySelector('.tools');
   if (tools){
     badge = el('button', 'btn quota', 'Ходов: …'); badge.type = 'button';
-    badge.addEventListener('click', paywall);
+    badge.addEventListener('click', () => paywall());
     tools.prepend(badge);
   }
   addMic(); refresh();
