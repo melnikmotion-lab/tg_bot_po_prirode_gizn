@@ -134,7 +134,7 @@ function pickTalk(btn){
   const here = Object.entries(COMPANIONS).filter(([id, c]) => S.party[id].alive && (S.party[id].joined || (S.party[id].visible && c.place === S.place)));
   const box = document.createElement('div'); box.className = 'talk-pick';
   const add = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', () => { box.remove(); fn(); }); box.append(b); };
-  here.forEach(([id, c]) => add(c.name.split(' ')[0], () => ask(`${c.name.split(' ')[0]}, `)));
+  here.forEach(([id, c]) => { const n = c.short || c.name.split(' ')[0]; add(n, () => ask(`${n}, `)); });
   add(here.length ? 'Кому-то ещё…' : 'Сказать вслух…', () => ask('говорю: «»'));
   btn.closest('.acts').append(box);
   setTimeout(() => document.addEventListener('click', function off(e){ if (!box.contains(e.target)){ box.remove(); document.removeEventListener('click', off); } }), 0);
