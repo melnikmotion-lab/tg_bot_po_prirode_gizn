@@ -112,17 +112,24 @@ function parseJson(text) {
   if (s < 0 || e <= s) return null;
   try { return JSON.parse(text.slice(s, e + 1)); } catch { return null; }
 }
-async function callClaude(prompt, kind, paid) {
+// onText (optional) gets the answer text as it grows, so the player sees the master writing.
+async function callClaude(prompt, kind, paid, onText) {
   const [fixed, rest] = split(prompt);
   const system = [{ type: 'text', text: SYSTEM }];
   if (fixed) system.push({ type: 'text', text: fixed, cache_control: { type: 'ephemeral' } });
-  const msg = await anthropic.messages.create({
+  const params = {
     model: kind === 'talk' && paid ? TALK_MODEL : GM_MODEL,  // the smarter voice is for paying players
     max_tokens: 4000,
     system,
     messages: [{ role: 'user', content: rest }],
     output_config: { effort: 'low' },
-  });
+  };
+  let msg;
+  if (onText) {
+    const stream = anthropic.messages.stream(params);
+    for await (const ev of stream) if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta') onText(ev.delta.text);
+    msg = await stream.finalMessage();
+  } else msg = await anthropic.messages.create(params);
   if (msg.stop_reason === 'refusal') throw { code: 'refused' };
   const text = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
   const data = parseJson(text);
@@ -136,7 +143,7 @@ function blocked(u, me, code) {
   return [code === 'limit_reached' ? 402 : 429, { error: code, quota: quota(u, me.tg) }];
 }
 
-async function apiAi(req, body) {
+async function apiAi(req, body, onText) {
   const me = who(req);
   const prompt = String(body.prompt || '');
   const kind = kindOf(prompt);
@@ -171,7 +178,7 @@ async function apiAi(req, body) {
   try {
     const t0 = Date.now();
     const turn = String(req.headers['x-turn'] || '').slice(0, 24) || 'none';
-    const r = await callClaude(prompt, kind, pass || !!u.paidTurns[turn]);
+    const r = await callClaude(prompt, kind, pass || !!u.paidTurns[turn], kind === 'art' ? null : onText);
     const cost = costOf(r.model, r.usage || {});
     u.cost += cost; db.spend += cost; db.spendTotal += cost; persist();
     logLine({ type: 'ai', user: me.key, kind, ms: Date.now() - t0, model: r.model, usage: r.usage, cost: +cost.toFixed(5) });
@@ -300,8 +307,16 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/ai') {
-      const [code, obj] = await apiAi(req, await readBody(req));
-      return send(res, code, obj);
+      const body = await readBody(req);
+      // with stream:true the answer goes out as lines of JSON: {"d":"text piece"} … then the final {"done":true,…}
+      let started = false;
+      const onText = body.stream ? t => {
+        if (!started) { started = true; res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' }); }
+        res.write(JSON.stringify({ d: t }) + '\n');
+      } : null;
+      const [code, obj] = await apiAi(req, body, onText);
+      if (!started) return send(res, code, obj);
+      return res.end(JSON.stringify(code === 200 ? { done: true, ...obj } : { ...obj, error: obj.error || 'upstream_error' }) + '\n');
     }
     if (req.method === 'POST' && url.pathname === '/api/log') {
       const me = who(req), body = await readBody(req, 40000);

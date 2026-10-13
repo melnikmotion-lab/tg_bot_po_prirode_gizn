@@ -28,7 +28,34 @@ async function post(url, body){
 
 let config = { bot: '', ai: true, products: [] };
 const ready = fetch('/api/config').then(r => r.json()).then(c => { config = c; }).catch(() => {});
-const sample = { json: async prompt => (await post('/api/ai', { prompt })).data };
+// With opts.onText the server streams the answer and the page shows the master's text as it is written.
+async function streamAi(prompt, onText){
+  let r;
+  try { r = await fetch('/api/ai', { method: 'POST', headers: headers(), body: JSON.stringify({ prompt, stream: true }) }); } catch(e){ throw { code: 'upstream_error' }; }
+  if (!/ndjson/.test(r.headers.get('content-type') || '') || !r.body){
+    let j = null; try { j = await r.json(); } catch(e){}
+    if (j && j.quota) setQuota(j.quota);
+    if (!r.ok || !j || j.error) throw { code: (j && j.error) || 'upstream_error' };
+    return j.data;
+  }
+  const rd = r.body.getReader(), dec = new TextDecoder();
+  let buf = '', acc = '', last = null;
+  for (;;){
+    const { value, done } = await rd.read();
+    if (value) buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0){
+      const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line.trim()) continue;
+      let m; try { m = JSON.parse(line); } catch(e){ continue; }
+      if (m.d != null){ acc += m.d; try { onText(acc); } catch(e){} } else last = m;
+    }
+    if (done) break;
+  }
+  if (last && last.quota) setQuota(last.quota);
+  if (!last || last.error || !last.done) throw { code: (last && last.error) || 'upstream_error' };
+  return last.data;
+}
+const sample = { json: async (prompt, opts) => opts && typeof opts.onText === 'function' ? streamAi(prompt, opts.onText) : (await post('/api/ai', { prompt })).data };
 const db = { collection: () => ({ add: doc => post('/api/log', doc).catch(() => {}) }) };
 window.claude = { use: async name => {
   await ready;
