@@ -199,11 +199,23 @@ function placeFeatures(sc, feats){
     if (f === 'puddle') for (let y = -5; y <= 5; y++) for (let x = -20; x <= 20; x++){ if ((x/20)**2 + (y/5)**2 < 1){ const i = (slot[1] + y)*W + slot[0] + x; if (i > 0 && i < W*H){ sc.R[i] = sc.names.indexOf('floor') >= 0 ? sc.names.indexOf('floor') : 0; sc.B[i] = .02; sc.special.set(i, (x + y*3) % 7 === 0 ? '#3a4e6e' : '#141c2a'); } } }
   }
 }
+// Neutral stand-in for a place that has no painted picture yet: sky and ground outdoors, dark walls indoors. Never a cave by mistake.
+function buildPlaceholder(info){
+  const sc = newScene(info.outdoor ? ['sky','mount','dirt','pine'] : ['dark','stone','floor','mortar']);
+  const hz = 78;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const i = y*W + x;
+    if (y < hz){ sc.R[i] = info.outdoor ? (y > hz - 10 - 6*Math.sin(x*.05) ? 1 : 0) : 1; sc.B[i] = info.outdoor ? y/hz*.6 : .12 + (hash(x>>2, y>>2) - .5)*.08; sc.K[i] = info.outdoor ? .1 : 1; }
+    else { sc.R[i] = 2; sc.B[i] = .1 + (y - hz)/(H - hz)*.25 + (hash(x, y) - .5)*.1; sc.K[i] = 1; }
+  }
+  sc.spots = [[84, 124], [156, 124], [120, 118]]; sc.outdoor = !!info.outdoor;
+  return sc;
+}
 function sceneOf(p){
   const z = S.zones[p] || { i: 0, f: [] }, key = `${p}:${z.i}:${(z.f || []).join(',')}`;
   if (SCENES[key]) return SCENES[key];
   SEED = p === 'lair' || p === 'clearing' ? 0 : z.i*17 + 3;
-  const sc = p === 'clearing' ? buildClearing() : p === 'cave' ? buildCave() : p === 'lair' ? buildLair() : buildHall(p === 'stairs' && z.i > 0 ? 'stairs' : p);
+  const sc = ADV_ID !== 'cave' ? buildPlaceholder(PLACES[p] || {}) : p === 'clearing' ? buildClearing() : p === 'cave' ? buildCave() : p === 'lair' ? buildLair() : buildHall(p === 'stairs' && z.i > 0 ? 'stairs' : p);
   placeFeatures(sc, z.f || []); bakeLights(sc); SEED = 0;
   return SCENES[key] = sc;
 }
@@ -249,6 +261,12 @@ function spriteCanvas(rows){
 const portraitCache = {};
 function portrait(id){
   if (portraitCache[id]) return portraitCache[id];
+  if (ART.portrait && ART.portrait[id]) return portraitCache[id] = ART.portrait[id];
+  if (!SPRITES[id]){ // no art yet: the first letter of the name
+    const c = document.createElement('canvas'); c.width = 20; c.height = 20; const g = c.getContext('2d');
+    g.fillStyle = '#1d1834'; g.fillRect(0, 0, 20, 20); g.fillStyle = '#ecdfc6'; g.font = '600 13px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(((COMPANIONS[id] && COMPANIONS[id].name) || id)[0], 10, 11); return portraitCache[id] = c.toDataURL();
+  }
   const rows = SPRITES[id].slice(0, 9), c0 = spriteCanvas(rows);
   const c = document.createElement('canvas'); c.width = 20; c.height = 20; const g = c.getContext('2d');
   g.fillStyle = '#1d1834'; g.fillRect(0, 0, 20, 20); g.drawImage(c0, ((20 - c0.width)/2)|0, 20 - c0.height);
@@ -439,14 +457,14 @@ function render(t, dt){
     ctx.drawImage(im, Math.round(x - im.width/2), Math.round(y - im.height));
     ctx.filter = 'none'; ctx.globalAlpha = 1;
   };
-  const artSpr = k => { const im = ARTIMG.sprite[k]; return art && im && im.complete && im.naturalWidth ? im : null; };
+  const artSpr = k => { const im = ARTIMG.sprite[k]; return im && im.complete && im.naturalWidth ? im : null; };
   if (!art) for (const ft of sc.feats || []) if (SPRITES[ft.f]){ const s = SCALE[ft.f] || 2, c = spriteCanvas(SPRITES[ft.f]);
     if (FEATURE_KIND[ft.f] === 'ceil') drawSpr(SPRITES[ft.f], ft.x, c.height*s, s); else if (ft.f === 'bones'){ drawSpr(SPRITES.skull, ft.x - 8, ft.y, 1); drawSpr(SPRITES.bones, ft.x + 6, ft.y + 2, 1); } else drawSpr(SPRITES[ft.f], ft.x, ft.y, s); }
   if (S.place === 'lair' && !S.chestTaken) drawSpr(SPRITES.chest, sc.chestSpot[0], sc.chestSpot[1], 2);
   const legacy = LEGACY.find(l => l.place === S.place);
   if (legacy && !S.legacyFound){ drawSpr(SPRITES.skull, 92, 126, 1); drawSpr(SPRITES.bones, 104, 128, 1); }
   let slot = 0;
-  vis.filter(e => e.type !== 'ghost' && SPRITES[e.type]).forEach((e, k) => {
+  vis.filter(e => e.type !== 'ghost' && (SPRITES[e.type] || artSpr(e.type))).forEach((e, k) => {
     const spot = (sc.typeSpot && sc.typeSpot[e.type]) || sc.spots[slot++ % sc.spots.length];
     if (e.type === 'bat'){ for (let b = 0; b < Math.max(1, Math.min(3, e.hp)); b++) drawSpr(SPRITES.bat, spot[0] - 24 + b*24, spot[1] + (fi + b) % 2*2 - b % 2*6, 1); return; }
     const bob = e.state === 'asleep' ? 0 : [0, 1, 0][fi];
@@ -458,9 +476,9 @@ function render(t, dt){
   for (const [id, c] of Object.entries(COMPANIONS)){
     const st = S.party[id]; if (st.joined || !st.alive || !st.visible || c.place !== S.place) continue;
     const spot = sc.companionSpot || [182, 112];
-    const pic = id === 'skrip' ? artSpr('goblin') : null;
+    const pic = artSpr(id) || (id === 'skrip' ? artSpr('goblin') : null);
     if (pic){ const at = (ART_SPOT[S.place] && ART_SPOT[S.place].companion) || spot; drawArt(pic, at[0], at[1] + [0, 1, 0][fi]); continue; }
-    drawSpr(SPRITES[id], spot[0], spot[1] + [0, 1, 0][fi], 2);
+    if (SPRITES[id]) drawSpr(SPRITES[id], spot[0], spot[1] + [0, 1, 0][fi], 2);
   }
   const ready = im => im.complete && im.naturalWidth;
   const inHand = (item, x, big) => { const c = spriteCanvas(heldArt(item)), s = 2; ctx.drawImage(c, x + 34 - c.width*s/2, HAND_Y + (big ? 100 : 72) - c.height*s, c.width*s, c.height*s); };

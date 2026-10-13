@@ -142,6 +142,11 @@ form{display:flex;gap:8px}
 .ground-item{display:flex;align-items:center;gap:8px;min-height:44px;padding:4px 10px;background:var(--panel-2);color:var(--ink);border:2px dashed #4a4260;font:600 13px var(--f-ui);text-align:left;cursor:pointer}
 .ground-item .ico{width:32px;height:32px;flex:none}
 /* Hero choice */
+.adv-pick{display:grid;gap:8px}
+.adv-card{display:grid;gap:2px;text-align:left;padding:10px 12px;background:var(--panel);border:2px solid var(--line);color:var(--ink);font:inherit;cursor:pointer}
+.adv-card b{font-family:var(--f-display);font-weight:600;font-size:16px}
+.adv-card span{font-size:14px;color:var(--muted)}
+.adv-card.on{border-color:var(--ember);background:var(--panel-2)}
 .hero{font-family:var(--f-body);font-size:14px;color:var(--muted)}
 .hero b{color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:16px}
 .hero-back{position:fixed;inset:0;background:rgba(5,4,12,.96);display:grid;place-items:center;padding:16px;z-index:60;overflow-y:auto}
@@ -462,8 +467,8 @@ const CONDITIONS = {
 const condName = id => CONDITIONS[id]?.name || id;
 
 /* ---------- places, enemies, companions ---------- */
-const ORDER = ['clearing','cave','corridor','stairs','lair'];
-const PLACES = {
+const CAVE_ORDER = ['clearing','cave','corridor','stairs','lair'];
+const CAVE_PLACES = {
   clearing: { name:'Поляна у пещеры', light:'dusk', about:'закат, трава и мох, грязная лужа с червяками, куст с ягодами, сосны с шишками, камни и ветки; чёрная пасть пещеры с каменными «зубами»' },
   cave:     { name:'Сырая пещера', light:'dark', about:'низкий каменный тоннель, сталактиты, лужи, светящиеся голубые грибы, под сводом спят летучие мыши; дальше проход в рукотворный коридор' },
   corridor: { name:'Древний коридор', light:'dark', about:'кирпичный коридор древних гномов; посередине нажимная плита ловушки (дротики из стен, яд, спасбросок ЛОВ 13); гоблины-дозорные; в конце — спуск' },
@@ -477,16 +482,15 @@ const ENEMY_STATS = {
   goblin_chief: { name:'Серый Зуб',    hp:21, ac:15, atk:4, dmg:'1d6+2, две атаки' },
   orc:          { name:'Гром',         hp:15, ac:13, atk:5, dmg:'1d12+3' },
 };
-const ENEMIES = Object.keys(ENEMY_STATS);
 const newEnemy = (type, extra = {}) => ({ type, name: ENEMY_STATS[type].name, hp: ENEMY_STATS[type].hp, ac: ENEMY_STATS[type].ac, state:'idle', hidden:false, ...extra });
-const START_ENEMIES = {
+const CAVE_START = {
   clearing: [],
   cave:     [newEnemy('bat', { name:'Стая летучих мышей', hp:3 })],
   corridor: [newEnemy('goblin', { name:'Гоблин-дозорный Хряп' }), newEnemy('goblin', { name:'Гоблин-дозорный Шмыг', state:'asleep' })],
   stairs:   [newEnemy('ghost', { hidden:true })],
   lair:     [newEnemy('goblin_chief'), newEnemy('orc')],
 };
-const COMPANIONS = {
+const CAVE_COMPANIONS = {
   skrip: { name:'Скрип', place:'clearing', hp:7, ac:13, atk:4, dmg:[4, 2], weapon:'ржавый нож',
     look:'тощий гоблин лет тридцати (для гоблина — старик), бурая шапка из крысиной шкуры, на левой руке не хватает двух пальцев, глаза жёлтые и бегающие',
     bible:`Скрип — гоблин-изгой. Десять лет служил у Серого Зуба «чистильщиком блестяшек»: натирал его золото. Неделю назад попался на краже серебряной ложки; орк Гром откусил ему два пальца, и Скрипа выгнали из пещеры. Теперь он прячется в кустах у входа, грызёт сырую репу и ненавидит Грома.
@@ -511,6 +515,110 @@ const COMPANIONS = {
     firstScene:'сидит на корточках у стены пещеры, срезает ножом светящиеся грибы в корзинку и вполголоса считает их; игрока замечает не сразу' },
 };
 const FEATURES = ['rubble','web','bones','barrel','crate','door','torch','chains','puddle','crystals','roots'];
+/* ---------- adventures: each brings its places, creatures, characters and master notes; the engine is shared ---------- */
+const ADVENTURES = {
+  cave: { title:'Пещера Серого Зуба', pitch:'Пробное подземелье: гоблинский вождь, его сундук и призрак на лестнице.', start:'clearing', safe:'clearing',
+    order: CAVE_ORDER, links: null, places: CAVE_PLACES, start_enemies: CAVE_START, companions: CAVE_COMPANIONS, visible: ['tina'],
+    intro: 'Закат. Ты стоишь на поляне перед чёрной пастью пещеры, похожей на пасть с каменными зубами. Говорят, внутри, в тронном зале под старым склепом, гоблинский вождь Серый Зуб стережёт сундук с золотом. Ты воин: на тебе кольчуга, на поясе длинный меч, в сумке факел и огниво. Где-то в кустах хрустнула ветка.',
+    gm: `ПРИКЛЮЧЕНИЕ «ПЕЩЕРА СЕРОГО ЗУБА».
+- Цепочка мест: clearing «Поляна у пещеры» → cave «Сырая пещера» → corridor «Древний коридор» → stairs «Лестница в склеп» → lair «Логово Серого Зуба».
+- Победа ("game_over":"win"): игрок забирает сокровище из сундука в логове ("chest_taken": true).
+- Персонажи: Скрип (гоблин-изгой на поляне) и Тина (травница в пещере) могут вступить в отряд через разговор. Если Скрип не замечен за 2–3 хода на поляне, он сам высовывается из куста.` },
+};
+
+/* ---------- adventure: «Колокол на дне» (design: adventures/kolokol.md) ---------- */
+Object.assign(ENEMY_STATS, {
+  drowned:   { name:'Утопленник',   hp:11, ac:8,  atk:3, dmg:'1d6+1, при попадании захват: спасбросок СИЛ 11 или тянет к воде' },
+  servant:   { name:'Слуга Девы',   hp:9,  ac:12, atk:4, dmg:'1d6+2 холодом' },
+  lady:      { name:'Дева Омута',   hp:45, ac:13, atk:5, dmg:'2d6+2 холодом, две атаки; три удара колокола подряд лишают её силы на раунд; холодное железо ранит вдвойне' },
+});
+ADVENTURES.bell = {
+  title: 'Колокол на дне',
+  pitch: 'Деревня у озера. Каждую ночь из-под воды звонит колокол утонувшей часовни, и после звона дети уходят во сне к воде.',
+  start: 'square', safe: 'square',
+  order: ['square','house','mill','shore','chapel','grotto'],
+  links: { square:['house','mill','shore'], house:['square'], mill:['square','shore','grotto'], shore:['square','mill','chapel'], chapel:['shore'], grotto:['mill'] },
+  places: {
+    square: { name:'Площадь Брэкенмира', light:'dusk', outdoor:true, about:'маленькая площадь деревни у озера: старый каменный колодец, кривые фахверковые дома, доска с листками о пропавших детях, туман тянется с озера' },
+    house:  { name:'Дом матушки Одры', light:'dim', about:'тёплый дом знахарки: очаг, пучки трав под балками, полки с банками, медовые лепёшки на столе, костяной гребень на полке; подпол под ковриком' },
+    mill:   { name:'Мельница и запруда', light:'dusk', outdoor:true, about:'старая водяная мельница у высокой земляной запруды с железными заслонками и колесом-механизмом; привязанная лодка; за запрудой — тёмная вода' },
+    shore:  { name:'Берег и мостки', light:'dark', outdoor:true, about:'берег озера ночью: гнилые мостки уходят в чёрную воду, высокий камыш, детские следы в иле ведут к воде, туман; на мелководье затонувшая лодка' },
+    chapel: { name:'Затонувшая часовня', light:'dark', about:'часовня Рассвета, затопленная по пояс: обломки скамей в чёрной воде, сухой каменный алтарь, узкая лестница на колокольню с бронзовым колоколом, провал в полу, где вода уходит вниз; надпись на стене' },
+    grotto: { name:'Омут Девы', light:'dim', about:'подводный грот за запрудой, бледно-зелёный свет; пропавшие дети спят внутри больших воздушных пузырей; кости и монеты на песчаном дне; каменный уступ над водой' },
+  },
+  start_enemies: {
+    square: [], house: [], mill: [],
+    shore:  [newEnemy('drowned', { name:'Утопленник', hidden:true }), newEnemy('drowned', { name:'Утопленник у мостков', hidden:true })],
+    chapel: [newEnemy('servant', { name:'Слуга Девы', hidden:true }), newEnemy('servant', { name:'Водяной слуга', hidden:true })],
+    grotto: [newEnemy('lady', { state:'idle' })],
+  },
+  companions: {
+    haldor: { name:'Хальдор Грейв', call:'хальдор|старост', place:'square', hp:9, ac:10, atk:2, dmg:[4, 0], weapon:'палка',
+      look:'усталый староста лет пятидесяти, седая борода, встревоженные глаза, шерстяной кафтан с медной цепью старосты',
+      bible:`Хальдор Грейв — староста Брэкенмира, человек. Честный, усталый, напуганный. Месяц не спит. Хочет простого решения: «достаньте этот проклятый колокол со дна и разбейте». Платит 30 золотых сейчас и 20 — когда дети вернутся. Уверен, что колокол проклят. Уважает матушку Одру, «она всех нас лечит». Мельника Барта считает пьяницей. Говорит коротко, по-крестьянски, без пафоса. Не идёт с героями: «у меня деревня».`,
+      firstScene:'стоит у колодца и прибивает к доске новый листок с именем пропавшего ребёнка' },
+    odra:   { name:'Матушка Одра', call:'одр[аеуыо]|матушк|знахар', place:'house', hp:8, ac:10, atk:1, dmg:[4, 0], weapon:'нож для трав',
+      look:'знахарка, на вид лет пятидесяти, но с очень старыми глазами; тёплая улыбка, седая коса, веточки трав и костяной гребень в волосах',
+      bible:`Матушка Одра — любимая всеми знахарка. Говорит, что в ней эльфийская кровь, поэтому и выглядит молодо. ПРАВДА (скрывает изо всех сил): она человек, ей сто шестьдесят лет. Давным-давно заключила договор с Девой Омута: раз в семь лет отдаёт озеру ребёнка, а взамен не стареет и не болеет. Залог договора — костяной гребень. Сейчас Дева требует больше, и Одра в ужасе, но боится смерти сильнее.
+ГОЛОС: ласковая, «деточка», «голубчик», угощает лепёшками, лечит бесплатно. Сама предлагает героям обереги «от нечисти» — они НАСТОЯЩИЕ, но помечают носящего для Девы.
+КАК ЛОМАЕТСЯ: на прямые обвинения сначала всё отрицает и обижается; если показать рисунки Пипа или её дневник — плачет: «Я боюсь смерти больше, чем всего остального». Не дерётся; загнанная в угол, зовёт Деву.
+НЕ ДЕЛАЕТ: не выдаёт тайну сама; не идёт с героями.`,
+      firstScene:'помешивает отвар у очага и напевает; встречает гостей как родных' },
+    pip:    { name:'Пип', call:'пип|мальчик|малыш', place:'square', hp:3, ac:10, atk:0, dmg:[1, 0], weapon:'уголёк',
+      look:'бледный испуганный мальчик восьми лет, мокрые взъерошенные волосы, огромные тёмные глаза, кусочек угля в руке',
+      bible:`Пип — единственный ребёнок, которого вытащили из камышей. Почти не говорит: отвечает кивками, шёпотом, отдельными словами («дядя… колокол… зовёт»). Зато РИСУЕТ углём: монаха с колоколом и женщину из воды с костяным гребнем в волосах. Если с ним добры и терпеливы (не кричат, присаживаются рядом, дарят что-то), показывает рисунки и в конце рисует, где спят дети: «под мельницей, в воде, в пузырях». Боится громких голосов и матушки Одры (прячется за взрослых, когда её упоминают), но не может объяснить почему.`,
+      firstScene:'сидит на ступеньках у колодца и рисует углём на камне, не поднимая глаз' },
+    bart:   { name:'Барт Квилл', call:'барт|квилл|мельник', place:'mill', hp:7, ac:11, atk:2, dmg:[4, 0], weapon:'мельничный крюк',
+      look:'ворчливый полурослик средних лет, красный нос пьяницы, мука на одежде, щетина, подозрительный прищур, железный ключ на шнурке на шее',
+      bible:`Барт Квилл — мельник, полурослик. Грубит, пьёт, гонит чужаков: «Нечего тут шастать». Хранит страшную тайну: его отец тридцать лет назад запер часовню, чтобы монах-звонарь Освин не мешал поднимать воду, — Освин утонул внутри. Ключ от часовни висит у Барта на шее. Вина грызёт его, поэтому и пьёт.
+КАК РАСКРЫВАЕТСЯ: давление, угроза, выпивка вместе, честный разговор о вине «не твоей, а отца» — признаётся, отдаёт ключ, даёт лодку.
+ЛЮБИТ: азартные игры (кости), крепкую настойку, свою мельницу. Если героям придёт в голову открыть заслонки и спустить озеро — будет в ярости: «Это всё, что у меня есть!»`,
+      firstScene:'чинит заслонку на запруде и ругается на ржавчину; заметив чужаков, хватает крюк' },
+    osvin:  { name:'Брат Освин', call:'освин|монах|призрак|звонар', place:'chapel', hp:10, ac:11, atk:3, dmg:[6, 0], weapon:'холодное касание',
+      look:'полупрозрачный бледно-голубой призрак старого монаха в капюшоне, держит верёвку колокола',
+      bible:`Призрак брата Освина, монаха-звонаря часовни Рассвета. Утонул тридцать лет назад, запертый в часовне. НЕ ГОВОРИТ СЛОВАМИ. Отвечает только ударами колокола: «Дон.» — да, «Дон. Дон.» — нет, тишина — не знает. Каждую ночь звонит, чтобы разбудить детей, которых зовёт Дева, — звон срывает её чары. Добрый, печальный. Если трогают колокол или пытаются его разбить — становится опасным. Хочет, чтобы детей спасли; на вопросы об Одре и гребне отвечает «да».`,
+      firstScene:'бледный силуэт на колокольне медленно тянет верёвку колокола' },
+  },
+  intro: 'Сумерки. Ты стоишь на маленькой площади Брэкенмира. С озера тянет холодом и туманом, у колодца староста прибивает к доске новый листок — ещё одно детское имя. Месяц каждую ночь из-под воды звонит колокол утонувшей часовни, и после звона дети встают во сне и идут к воде. Двоих так и не нашли. На ступеньках у колодца бледный мальчик молча рисует углём на камне.',
+  gm: `ПРИКЛЮЧЕНИЕ «КОЛОКОЛ НА ДНЕ» (тёмная сказка, деревенский ужас; все кажутся добрыми, правда страшнее чудовищ).
+ПРАВДА (знаешь только ты, раскрывай постепенно через улики):
+- Колокол звонит призрак брата Освина; звон БУДИТ детей и срывает чары. Детей уводит Дева Омута, древний дух озера.
+- Договор: матушка Одра раз в семь лет отдаёт озеру ребёнка и не стареет (ей 160 лет). Залог — костяной гребень у неё на полке. Её обереги помечают героев для Девы.
+- Отец мельника Барта запер Освина в часовне перед затоплением. Ключ от часовни у Барта.
+УЛИКИ: в первую ночь колокол стихает, как только ребёнка спасли; рисунки Пипа (женщина из воды с тем же гребнем); Освин отвечает ударами (Дон — да, Дон-Дон — нет); надпись в часовне «Квилл запер дверь. Дева проснулась».
+ВРЕМЯ: игра идёт по ночам. Ночь наступает, когда герой ждёт, отдыхает или долго занимается делами ("night_passes": true). Каждую ночь звонит колокол и один ребёнок идёт к воде — героя можно позвать на берег. После третьей ночи без решения — провал.
+ТАЙНИКИ И ДОБЫЧА (выдавай ТОЛЬКО это, ровно эти предметы, через "add_items" и "gold_delta", и только после успешной находки):
+- колодец на площади (Внимательность 12 или спуск на верёвке): кошель утопшего торговца — 12 золотых, «медное кольцо с гербом».
+- подпол в доме Одры (Расследование 13 или обыск без неё): 2 «зелье лечения», «дневник Одры», 40 золотых.
+- мельница, под половицей (Внимательность 14 или разговорить Барта): «ключ от часовни», «фляга настойки», 8 золотых.
+- затонувшая лодка у берега (Атлетика 12, нырнуть): 3 «святая вода».
+- колокольня часовни: «язык колокола» (железная дубина 1d6+1, против духов воды +1d4).
+- ризница часовни (Ловкость рук 13 или ключ): «серебряный подсвечник», «свиток защиты от зла».
+- дно Омута: «жемчужина Омута», «кинжал +1», 60 золотых.
+Мелочь (камни, ветки, грязь, рыба) — можно, если правдоподобно. Ничего ценного сверх списка.
+КОНЦОВКИ ("game_over":"win", "ending":"..."):
+- "pact_broken": гребень вернули Деве — Одра за ночь стареет и умирает, дети возвращаются, деревня не верит. Награда: староста 50 золотых.
+- "took_the_pact": герой сам заключил договор с Девой — дети свободны, на герое проклятие ("remember").
+- "lake_drained": открыли заслонки — Дева слабеет навсегда, дети спасены, мельница разрушена, Барт — враг. Со дна поднимается сундук монастыря: 120 золотых и «кольчуга +1».
+- "osvin_rests": подняли колокол и упокоили Освина — звон стихает, и Дева уводит детей тише. Это ПЛОХАЯ концовка, похожая на хорошую.
+- "odra_killed": убили Одру — договор рвётся, но Дева в ярости затопляет дома у берега.
+- провал ("game_over":"death" не нужен; "ending":"failed"): после третьей ночи ещё один ребёнок пропал, героев гонят.
+БОИ: берег ночью — утопленники вылезают из воды за спиной, тянут на глубину; боятся огня. Часовня — слуги Девы; каждые 3 раунда вода поднимается; три удара колокола оглушают слуг. Дева — драться необязательно, лучше торговаться, гребень, колокол, холодное железо.
+ПЕРСОНАЖИ (Хальдор, Одра, Пип, Барт, Освин) — их досье в состоянии; говорят своими голосами через отдельный «голос персонажа». Никто из них не вступает в отряд.
+УЧАСТКИ: "zone" в этом приключении не используй — у каждого места одна картинка, детали описывай текстом.`,
+  heroHooks: {
+    bran: 'Староста Хальдор знает Брана как стражника из Эшфорда и доверяет ему сразу. Барт Квилл при виде стражника замыкается.',
+    mira: 'Одра с первого взгляда «узнаёт родственную душу» в Мире и откровенничает с ней больше, чем с другими. Мира может обыграть Барта в кости на ключ от часовни.',
+    torgrim: 'Торгрим разбирается в запрудах и механизмах: заслонки откроет без проверки. Холодное железо его оружия особенно больно Деве.',
+  },
+};
+
+const ADV_KEY = 'grey-fang-adventure';
+const ADV_ID = (() => { try { const a = localStorage.getItem(ADV_KEY); return ADVENTURES[a] ? a : 'bell'; } catch(e){ return 'bell'; } })();
+const ADV = ADVENTURES[ADV_ID];
+const ORDER = ADV.order, PLACES = ADV.places, START_ENEMIES = ADV.start_enemies, COMPANIONS = ADV.companions;
+const ENEMIES = Object.keys(ENEMY_STATS);
+const neighbours = p => ADV.links ? (ADV.links[p] || []) : [ORDER[ORDER.indexOf(p) - 1], ORDER[ORDER.indexOf(p) + 1]].filter(Boolean);
 /* ---------- state ---------- */
 function rollStats(){
   const d6 = () => 1 + Math.floor(Math.random()*6);
@@ -522,22 +630,23 @@ function rollStats(){
 function newGame(heroId){
   const H = HEROES[heroId] || null;
   const stats = H ? { ...H.stats } : rollStats(), maxHp = 10 + mod(stats['ТЕЛ']);
-  const places = {}; for (const p of ORDER) places[p] = { enemies: START_ENEMIES[p].map(e => ({ ...e })), visited: p === 'clearing' };
+  const places = {}; for (const p of ORDER) places[p] = { enemies: (START_ENEMIES[p] || []).map(e => ({ ...e })), visited: p === ADV.start };
   return {
     stats, hp: maxHp, maxHp, ac: 16, gold: 0, hitDice: 1, secondWind: true, inspiration: false,
     hero: H ? heroId : null,
     inventory: ['длинный меч','кольчуга','факел','огниво','верёвка','краюха хлеба', ...(H ? H.items : [])],
     torchLit: false, held: 'длинный меч', left: null, itemArt: {},
-    place: 'clearing', places, conditions: [], exhaustion: 0,
-    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval: (H && H.rel[id] ? H.rel[id].approval : 0), hp:c.hp, alive:true, visible: id === 'tina', healUsed:false, talk:[] }])),
+    adv: ADV_ID, night: 0, ending: null,
+    place: ADV.start, places, conditions: [], exhaustion: 0,
+    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval: (H && H.rel[id] ? H.rel[id].approval : 0), hp:c.hp, alive:true, visible: ADV.visible ? ADV.visible.includes(id) : true, healUsed:false, talk:[] }])),
     zones: Object.fromEntries(ORDER.map(p => [p, { i:0, f: { cave:['crystals','roots'], corridor:['web','barrel'] }[p] || [], title:'' }])), turnsHere: 0, lastBanter: -9, combat: false,
     chronicle: [], history: [], journal: [], turn: 0, over: null, chestTaken: false, legacyFound: false,
   };
 }
-const INTRO = 'Закат. Ты стоишь на поляне перед чёрной пастью пещеры, похожей на пасть с каменными зубами. Говорят, внутри, в тронном зале под старым склепом, гоблинский вождь Серый Зуб стережёт сундук с золотом. Ты воин: на тебе кольчуга, на поясе длинный меч, в сумке факел и огниво. Где-то в кустах хрустнула ветка.';
+const INTRO = ADV.intro;
 let S;
 try { const raw = localStorage.getItem(SAVE_KEY); S = raw ? JSON.parse(raw) : null; } catch(e){ S = null; }
-const freshStart = !S || !S.places;
+const freshStart = !S || !S.places || (S.adv || 'cave') !== ADV_ID;
 if (freshStart) S = newGame('bran');
 function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch(e){} }
 let LEGACY = [];
@@ -768,11 +877,23 @@ function placeFeatures(sc, feats){
     if (f === 'puddle') for (let y = -5; y <= 5; y++) for (let x = -20; x <= 20; x++){ if ((x/20)**2 + (y/5)**2 < 1){ const i = (slot[1] + y)*W + slot[0] + x; if (i > 0 && i < W*H){ sc.R[i] = sc.names.indexOf('floor') >= 0 ? sc.names.indexOf('floor') : 0; sc.B[i] = .02; sc.special.set(i, (x + y*3) % 7 === 0 ? '#3a4e6e' : '#141c2a'); } } }
   }
 }
+// Neutral stand-in for a place that has no painted picture yet: sky and ground outdoors, dark walls indoors. Never a cave by mistake.
+function buildPlaceholder(info){
+  const sc = newScene(info.outdoor ? ['sky','mount','dirt','pine'] : ['dark','stone','floor','mortar']);
+  const hz = 78;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const i = y*W + x;
+    if (y < hz){ sc.R[i] = info.outdoor ? (y > hz - 10 - 6*Math.sin(x*.05) ? 1 : 0) : 1; sc.B[i] = info.outdoor ? y/hz*.6 : .12 + (hash(x>>2, y>>2) - .5)*.08; sc.K[i] = info.outdoor ? .1 : 1; }
+    else { sc.R[i] = 2; sc.B[i] = .1 + (y - hz)/(H - hz)*.25 + (hash(x, y) - .5)*.1; sc.K[i] = 1; }
+  }
+  sc.spots = [[84, 124], [156, 124], [120, 118]]; sc.outdoor = !!info.outdoor;
+  return sc;
+}
 function sceneOf(p){
   const z = S.zones[p] || { i: 0, f: [] }, key = `${p}:${z.i}:${(z.f || []).join(',')}`;
   if (SCENES[key]) return SCENES[key];
   SEED = p === 'lair' || p === 'clearing' ? 0 : z.i*17 + 3;
-  const sc = p === 'clearing' ? buildClearing() : p === 'cave' ? buildCave() : p === 'lair' ? buildLair() : buildHall(p === 'stairs' && z.i > 0 ? 'stairs' : p);
+  const sc = ADV_ID !== 'cave' ? buildPlaceholder(PLACES[p] || {}) : p === 'clearing' ? buildClearing() : p === 'cave' ? buildCave() : p === 'lair' ? buildLair() : buildHall(p === 'stairs' && z.i > 0 ? 'stairs' : p);
   placeFeatures(sc, z.f || []); bakeLights(sc); SEED = 0;
   return SCENES[key] = sc;
 }
@@ -818,6 +939,12 @@ function spriteCanvas(rows){
 const portraitCache = {};
 function portrait(id){
   if (portraitCache[id]) return portraitCache[id];
+  if (ART.portrait && ART.portrait[id]) return portraitCache[id] = ART.portrait[id];
+  if (!SPRITES[id]){ // no art yet: the first letter of the name
+    const c = document.createElement('canvas'); c.width = 20; c.height = 20; const g = c.getContext('2d');
+    g.fillStyle = '#1d1834'; g.fillRect(0, 0, 20, 20); g.fillStyle = '#ecdfc6'; g.font = '600 13px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(((COMPANIONS[id] && COMPANIONS[id].name) || id)[0], 10, 11); return portraitCache[id] = c.toDataURL();
+  }
   const rows = SPRITES[id].slice(0, 9), c0 = spriteCanvas(rows);
   const c = document.createElement('canvas'); c.width = 20; c.height = 20; const g = c.getContext('2d');
   g.fillStyle = '#1d1834'; g.fillRect(0, 0, 20, 20); g.drawImage(c0, ((20 - c0.width)/2)|0, 20 - c0.height);
@@ -1008,14 +1135,14 @@ function render(t, dt){
     ctx.drawImage(im, Math.round(x - im.width/2), Math.round(y - im.height));
     ctx.filter = 'none'; ctx.globalAlpha = 1;
   };
-  const artSpr = k => { const im = ARTIMG.sprite[k]; return art && im && im.complete && im.naturalWidth ? im : null; };
+  const artSpr = k => { const im = ARTIMG.sprite[k]; return im && im.complete && im.naturalWidth ? im : null; };
   if (!art) for (const ft of sc.feats || []) if (SPRITES[ft.f]){ const s = SCALE[ft.f] || 2, c = spriteCanvas(SPRITES[ft.f]);
     if (FEATURE_KIND[ft.f] === 'ceil') drawSpr(SPRITES[ft.f], ft.x, c.height*s, s); else if (ft.f === 'bones'){ drawSpr(SPRITES.skull, ft.x - 8, ft.y, 1); drawSpr(SPRITES.bones, ft.x + 6, ft.y + 2, 1); } else drawSpr(SPRITES[ft.f], ft.x, ft.y, s); }
   if (S.place === 'lair' && !S.chestTaken) drawSpr(SPRITES.chest, sc.chestSpot[0], sc.chestSpot[1], 2);
   const legacy = LEGACY.find(l => l.place === S.place);
   if (legacy && !S.legacyFound){ drawSpr(SPRITES.skull, 92, 126, 1); drawSpr(SPRITES.bones, 104, 128, 1); }
   let slot = 0;
-  vis.filter(e => e.type !== 'ghost' && SPRITES[e.type]).forEach((e, k) => {
+  vis.filter(e => e.type !== 'ghost' && (SPRITES[e.type] || artSpr(e.type))).forEach((e, k) => {
     const spot = (sc.typeSpot && sc.typeSpot[e.type]) || sc.spots[slot++ % sc.spots.length];
     if (e.type === 'bat'){ for (let b = 0; b < Math.max(1, Math.min(3, e.hp)); b++) drawSpr(SPRITES.bat, spot[0] - 24 + b*24, spot[1] + (fi + b) % 2*2 - b % 2*6, 1); return; }
     const bob = e.state === 'asleep' ? 0 : [0, 1, 0][fi];
@@ -1027,9 +1154,9 @@ function render(t, dt){
   for (const [id, c] of Object.entries(COMPANIONS)){
     const st = S.party[id]; if (st.joined || !st.alive || !st.visible || c.place !== S.place) continue;
     const spot = sc.companionSpot || [182, 112];
-    const pic = id === 'skrip' ? artSpr('goblin') : null;
+    const pic = artSpr(id) || (id === 'skrip' ? artSpr('goblin') : null);
     if (pic){ const at = (ART_SPOT[S.place] && ART_SPOT[S.place].companion) || spot; drawArt(pic, at[0], at[1] + [0, 1, 0][fi]); continue; }
-    drawSpr(SPRITES[id], spot[0], spot[1] + [0, 1, 0][fi], 2);
+    if (SPRITES[id]) drawSpr(SPRITES[id], spot[0], spot[1] + [0, 1, 0][fi], 2);
   }
   const ready = im => im.complete && im.naturalWidth;
   const inHand = (item, x, big) => { const c = spriteCanvas(heldArt(item)), s = 2; ctx.drawImage(c, x + 34 - c.width*s/2, HAND_Y + (big ? 100 : 72) - c.height*s, c.width*s, c.height*s); };
@@ -1173,7 +1300,7 @@ function setMusic(on){
 
 /* =====================  GAME MASTER (Claude)  ===================== */
 let sample = null, busy = false;
-const RULES = `Ты — мастер настольной игры по правилам 5-й редакции (SRD 5.1) в текстовой игре «Пещера Серого Зуба» (тёмное фэнтези). Игрок — воин 1 уровня без магии. Он пишет действия свободным текстом; ты решаешь, что происходит, и отвечаешь ТОЛЬКО одним JSON-объектом.
+const RULES = `Ты — мастер настольной игры по правилам 5-й редакции (SRD 5.1) в текстовой игре «${ADV.title}» (тёмное фэнтези). Игрок — воин 1 уровня без магии. Он пишет действия свободным текстом; ты решаешь, что происходит, и отвечаешь ТОЛЬКО одним JSON-объектом.
 
 ДУХ ИГРЫ
 - Реагируй на любое действие, даже шуточное: у всего есть последствия. Мир живой: существа заняты своими делами, а не стоят и ждут игрока.
@@ -1189,7 +1316,7 @@ const RULES = `Ты — мастер настольной игры по прав
 - Убить, прогнать или усмирить врага без оружия можно только через успешную проверку в этом же ходу (запугивание, обман, огонь, хитрость). Воин не владеет магией: молитвы и «заклинания» сами по себе никого не убивают и не изгоняют.
 - Бой идёт по очереди: игрок действует → спутники → враги. Враг, которого атаковали или который заметил игрока и настроен враждебно, получает state "angry".
 - Состояния игрока (poisoned, frightened, blinded, prone, charmed, restrained) — "conditions_add"/"conditions_remove"; помеху от них игра добавит сама. Истощение — "exhaustion_delta".
-- Второе дыхание воина — "second_wind": true. Отдых: "rest":"short" (в безопасности) или "long" (только на поляне, без врагов).
+- Второе дыхание воина — "second_wind": true. Отдых: "rest":"short" (в безопасности) или "long" (только в безопасном месте «${PLACES[ADV.safe].name}», без врагов).
 - Вдохновение потрачено ("использую вдохновение") — "inspiration":"use".
 
 ЧТО В РУКАХ
@@ -1203,22 +1330,24 @@ const RULES = `Ты — мастер настольной игры по прав
 - "enemies": список изменений существ в текущем месте: [{"name":"точное имя из состояния","state":"...","hidden":false,"hp":7}]. Указывай только тех, кто изменился. Удалять существ нельзя: убитые — "dead", сбежавшие — "fled", усмирённые — "pacified". Скрытых, которых игрок не заметил, не упоминай. Новое существо (редко) — {"new":true,"type":"...","name":"..."}.
 
 МЕСТА И УЧАСТКИ
-- Цепочка мест: clearing «Поляна у пещеры» → cave «Сырая пещера» → corridor «Древний коридор» → stairs «Лестница в склеп» → lair «Логово Серого Зуба». "move": id соседнего места — когда игрок уходит в него.
+- Места и переходы (откуда → куда можно пойти): ${ORDER.map(p => `${p} «${PLACES[p].name}» → ${neighbours(p).join(', ')}`).join('; ')}. "move": id соседнего места — когда игрок уходит в него; в несоседнее место сразу попасть нельзя.
 - Внутри места игрок может идти дальше/вглубь, осматривать боковые проходы. Тогда открой новый участок: "zone":{"advance":true,"title":"короткое название участка","features":[до 4 из: ${FEATURES.join(', ')}]} — и опиши его. Картинка рисуется из features, текст должен с ними совпадать. В пещере уместны crystals, roots, puddle, bones, rubble, web; в коридоре и на лестнице — torch, door, barrel, crate, chains, web, bones, rubble.
-- Победа ("game_over":"win"): игрок забирает сокровище из сундука в логове ("chest_taken": true).
 
-ПЕРСОНАЖИ (Скрип и Тина — их досье в состоянии)
-- Разговоры с персонажами ведёт отдельный «голос персонажа», не ты. НИКОГДА не пиши в narration прямую речь Скрипа или Тины и не пересказывай их слова — только их действия, мимику, позу. Реплику можешь вложить в "dialogue" ТОЛЬКО в критический момент (начало боя, чья-то смерть, находка, связанная с их целью) — одна короткая, в характере. Обычно "dialogue": [].
+ПЕРСОНАЖИ (их досье в состоянии)
+- Разговоры с персонажами ведёт отдельный «голос персонажа», не ты. НИКОГДА не пиши в narration прямую речь персонажей и не пересказывай их слова — только их действия, мимику, позу. Реплику можешь вложить в "dialogue" ТОЛЬКО в критический момент (начало боя, чья-то смерть, находка, связанная с их целью) — одна короткая, в характере. Обычно "dialogue": [].
 - ВСЁ, ЧТО ЕСТЬ «НА КАРТИНКЕ» (список в состоянии), должно быть замечено в тексте, когда игрок впервые это видит: если в месте есть персонаж или существо, опиши, чем оно занято.
 - Персонажи ведут себя естественно, по своему досье и сцене первой встречи: заняты делом, не здороваются как стражники, не соглашаются со всем подряд.
-- "party": [{"id":"skrip|tina","visible":true,"met":true}] — когда игрок замечает персонажа или знакомится с ним. В отряд они вступают только через разговор.
-- Если Скрип не замечен за 2–3 хода на поляне, он сам высовывается из куста.
+- "party": [{"id":"${Object.keys(COMPANIONS).join('|')}","visible":true,"met":true}] — когда игрок замечает персонажа или знакомится с ним. В отряд вступают только те, кому это позволяет досье, и только через разговор.
 
 НАСЛЕДИЕ: кости погибшего ранее героя (если есть в состоянии) лежат в указанном месте; при осмотре — "legacy_found": true, можно отдать часть его вещей.
 
 ФОРМАТ ОТВЕТА (строго JSON, без текста вокруг):
-{"narration":"...","dialogue":[],"check":null или {"kind":"check|save|attack","skill":"навык или null","ability":"СИЛ|ЛОВ|ТЕЛ|ИНТ|МДР|ХАР","dc":13,"adv":"none|advantage|disadvantage","target":"имя или null"},"hp_delta":0,"gold_delta":0,"add_items":[],"remove_items":[],"torch":null|"lit"|"out","held":"keep","held_left":"keep","move":null,"zone":null,"enemies":[],"party":[],"conditions_add":[],"conditions_remove":[],"exhaustion_delta":0,"inspiration":null,"second_wind":false,"rest":null,"remember":[],"chest_taken":false,"legacy_found":false,"effect":null|"${EFFECTS.join('|')}","game_over":null|"win"|"death"}
+{"narration":"...","dialogue":[],"check":null или {"kind":"check|save|attack","skill":"навык или null","ability":"СИЛ|ЛОВ|ТЕЛ|ИНТ|МДР|ХАР","dc":13,"adv":"none|advantage|disadvantage","target":"имя или null"},"hp_delta":0,"gold_delta":0,"add_items":[],"remove_items":[],"torch":null|"lit"|"out","held":"keep","held_left":"keep","move":null,"zone":null,"enemies":[],"party":[],"conditions_add":[],"conditions_remove":[],"exhaustion_delta":0,"inspiration":null,"second_wind":false,"rest":null,"remember":[],"chest_taken":false,"legacy_found":false,"night_passes":false,"ending":null,"effect":null|"${EFFECTS.join('|')}","game_over":null|"win"|"death"}
 ГЕРОЙ: если в состоянии у игрока есть имя, прошлое и особенность — это его персонаж. Обращайся к нему как к этому герою, пусть мир и персонажи реагируют на его прошлое, а особенность честно влияет на проверки (преимущество, сопротивление и т. п.).
+ВЕЩИ: "add_items" — короткие названия по-русски в именительном падеже («ком грязи», «зелье лечения»).
+
+${ADV.gm}
+
 ЧУЖИЕ ФРАНШИЗЫ: сам никогда не вводи персонажей, названия и фирменные фразы из чужих игр, аниме, фильмов и книг — мир остаётся своим. Но если игрок сам приносит что-то оттуда (называет себя персонажем, вызывает знакомую способность, кричит фразу), подыгрывай свободно, с теми же именами, как это сделал бы живой мастер за столом; правила и кости при этом действуют как обычно.`;
 
 const rollBag = () => { const d = n => 1 + Math.floor(Math.random()*n); return { A: d(20), B: d(20), E1: d(20), E2: d(20), d4: d(4), d6: d(6), d6b: d(6), d8: d(8), d8b: d(8), d10: d(10), d12: d(12) }; };
@@ -1241,7 +1370,8 @@ function buildPrompt(text, bag, ck){
     персонажи: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { имя: c.name, где_живёт: c.place, внешность: c.look, досье: c.bible, первая_встреча: c.firstScene, в_отряде: S.party[id].joined, замечен: S.party[id].visible, знаком: S.party[id].met, отношение: S.party[id].approval, hp: S.party[id].hp, жив: S.party[id].alive }])),
     хроника_мира: S.chronicle, сундук_забран: S.chestTaken,
     погибшие_герои: LEGACY.map(l => ({ место: l.place, причина: l.cause, вещи: l.items, найден: S.legacyFound })),
-    ход: S.turn,
+    ход: S.turn, ночь: S.night || 0,
+    ...(ADV.heroHooks && S.hero && ADV.heroHooks[S.hero] ? { личная_зацепка_героя: ADV.heroHooks[S.hero] } : {}),
   };
   const hist = S.history.slice(-8).map(h => `Игрок: ${h.p}\nМастер: ${h.n}${h.d ? '\nРеплики: ' + h.d : ''}`).join('\n\n') || '(начало игры) ' + INTRO;
   const forced = forcedDisadvantage('check');
@@ -1403,7 +1533,7 @@ function apply(res, text, bag, mode, preCheck){
   S.hp = clampInt(S.hp + clampInt(res.hp_delta, -12, 12), 0, S.maxHp);
   if (res.second_wind && S.secondWind){ S.secondWind = false; S.hp = Math.min(S.maxHp, S.hp + bag.d10 + 1); tags.push([`Второе дыхание: +${bag.d10 + 1}`, 'good']); addEffect('heal'); }
   if (res.rest === 'short' && !S.combat){ if (S.hitDice > 0){ S.hitDice--; S.hp = Math.min(S.maxHp, S.hp + Math.max(1, bag.d10 + mod(S.stats['ТЕЛ']))); } S.secondWind = true; tags.push(['Короткий отдых']); }
-  if (res.rest === 'long' && !S.combat && S.place === 'clearing'){ S.hp = S.maxHp; S.hitDice = 1; S.secondWind = true; S.exhaustion = Math.max(0, S.exhaustion - 1); S.conditions = []; for (const [id, c] of Object.entries(COMPANIONS)){ S.party[id].hp = c.hp; S.party[id].healUsed = false; } tags.push(['Долгий отдых']); }
+  if (res.rest === 'long' && !S.combat && S.place === ADV.safe){ S.hp = S.maxHp; S.hitDice = 1; S.secondWind = true; S.exhaustion = Math.max(0, S.exhaustion - 1); S.conditions = []; for (const [id, c] of Object.entries(COMPANIONS)){ S.party[id].hp = c.hp; S.party[id].healUsed = false; } tags.push(['Долгий отдых']); }
   S.gold = Math.max(0, S.gold + clampInt(res.gold_delta, -1000, 1000));
   if (Array.isArray(res.remove_items)) for (const it of res.remove_items.slice(0, 5)){
     const want = itemName(it).toLowerCase(); if (!want) continue;
@@ -1430,12 +1560,13 @@ function apply(res, text, bag, mode, preCheck){
   const blockers = here().enemies.filter(x => !x.hidden && x.type !== 'bat' && !['dead','fled','pacified','asleep'].includes(x.state));
   const slipped = check && check.success && /Скрытн|Обман|Убежд|Запуг|Акробат|Атлет/.test(check.skill || '');
   if (check && !check.success && /Скрытн/.test(check.skill || '')) here().enemies.forEach(x => { if (!x.hidden && x.state === 'idle') x.state = 'angry'; });
-  if (mv && ORDER.indexOf(mv) > ORDER.indexOf(S.place) && blockers.length && !slipped){ tags.push([`${blockers[0].name} не даёт пройти`]); blockers.forEach(x => { if (x.state === 'idle') x.state = 'angry'; }); res.move = null; }
+  // awake enemies block the way into new places (going back where you came from is allowed)
+  if (mv && S.places[mv] && !S.places[mv].visited && blockers.length && !slipped){ tags.push([`${blockers[0].name} не даёт пройти`]); blockers.forEach(x => { if (x.state === 'idle') x.state = 'angry'; }); res.move = null; }
   const mv2 = typeof res.move === 'string' ? res.move : res.move && res.move.view;
-  if (mv2 && ORDER.includes(mv2) && mv2 !== S.place && Math.abs(ORDER.indexOf(mv2) - ORDER.indexOf(S.place)) === 1 && !(S.combat && ORDER.indexOf(mv2) > ORDER.indexOf(S.place))){
+  if (mv2 && ORDER.includes(mv2) && mv2 !== S.place && neighbours(S.place).includes(mv2) && !(S.combat && !S.places[mv2].visited)){
     CRITICAL.moved = !S.places[mv2].visited; S.place = mv2; S.places[mv2].visited = true; S.turnsHere = 0; SFX.step(); tags.push([`→ ${PLACES[mv2].name}`]);
   }
-  if (res.zone && res.zone.advance && S.place !== 'lair' && S.place !== 'clearing'){
+  if (res.zone && res.zone.advance && ADV_ID === 'cave' && S.place !== 'lair' && S.place !== 'clearing'){
     const z = S.zones[S.place]; z.i++; z.f = (Array.isArray(res.zone.features) ? res.zone.features : []).filter(f => FEATURES.includes(f)).slice(0, 4); z.title = cleanStr(res.zone.title, 40); SFX.step();
     if (z.title) tags.push([z.title]);
   }
@@ -1470,7 +1601,12 @@ function apply(res, text, bag, mode, preCheck){
   // conditions tick
   S.conditions = S.conditions.map(c => c.turns ? { ...c, turns: c.turns - 1 } : c).filter(c => c.turns === null || c.turns > 0);
   if (S.hp <= 0 || S.exhaustion >= 6) res.game_over = 'death';
-  if (res.game_over === 'win' && !S.chestTaken) res.game_over = null;
+  // adventure clock and endings
+  if (res.night_passes && !S.combat){ S.night = (S.night || 0) + 1; tags.push([`Ночь ${S.night}`]); S.journal.push({ who: 'sys', text: `Наступает ночь ${S.night}. Над водой снова звонит колокол.` }); }
+  const ending = typeof res.ending === 'string' ? cleanStr(res.ending, 30) : null;
+  if (ending) S.ending = ending;
+  if (ADV_ID === 'cave' && res.game_over === 'win' && !S.chestTaken) res.game_over = null;
+  if (ADV_ID !== 'cave' && res.game_over === 'win' && !S.ending) res.game_over = null;
   if (res.game_over === 'win' || res.game_over === 'death') S.over = res.game_over;
   if (S.hp !== hpBefore) tags.push([`${S.hp > hpBefore ? '+' : ''}${S.hp - hpBefore} здоровья`, S.hp > hpBefore ? 'good' : '']);
   // unsolicited companion lines only at critical moments, and rarely
@@ -1489,7 +1625,7 @@ function apply(res, text, bag, mode, preCheck){
     S.journal.push({ who: 'sys', text: 'Ты погиб. Твои кости останутся здесь, и следующий искатель приключений их найдёт. Нажми «Новая игра».' });
     LEGACY.push({ place: S.place, cause: (lines.slice(-1)[0] || narration).slice(0, 160), items: S.inventory.filter(i => !/огнив|краюх/i.test(i)).slice(0, 4), turn: S.turn }); saveLegacy(); SFX.death();
   }
-  if (S.over === 'win'){ S.journal.push({ who: 'sys', text: `Победа! Сокровище Серого Зуба твоё. Золото: ${S.gold}. Ходов: ${S.turn}.` }); SFX.win(); }
+  if (S.over === 'win'){ S.journal.push({ who: 'sys', text: ADV_ID === 'cave' ? `Победа! Сокровище Серого Зуба твоё. Золото: ${S.gold}. Ходов: ${S.turn}.` : `Приключение окончено. Золото: ${S.gold}. Ходов: ${S.turn}. Нажми «Новая игра», чтобы сыграть ещё раз.` }); SFX.win(); }
   if (S.journal.length > 200) S.journal.splice(0, S.journal.length - 200);
   logTurn({ mode, player: text, raw: JSON.stringify(res).slice(0, 8000), combat: lines.join(' | ') });
   save(); renderAll();
@@ -1508,7 +1644,8 @@ function askPrompt(q, bag, ck){
 ВОПРОС ИГРОКА: «${q}»`;
 }
 /* ---------- talking to a character: a separate call in that character's own voice ---------- */
-const NAME_RE = { skrip: /скрип/i, tina: /тин[аеуыо]|полын/i };
+// how the player calls each character: the adventure may give a pattern, otherwise the stem of the first name
+const NAME_RE = Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, c.call ? new RegExp(c.call, 'i') : { skrip: /скрип/i, tina: /тин[аеуыо]|полын/i }[id] || new RegExp(c.name.split(' ')[0].slice(0, Math.max(3, c.name.split(' ')[0].length - 1)), 'i')]));
 const SPEECH_RE = /\?|[«"]|^\s*[-—]|^\s*(а |ну |ты |вы |эй|че|чё|что|как |кто|где|зачем|почему|откуда|расскаж|скажи|слушай|привет|здаров|давай|пошли|пойд|тогда|ладно|окей|ок |хорошо|да[ ,!.]|нет[ ,!.]|ого|спасибо|прости|извини|не бойся|успокойся|я не|я тебе|я хочу тебе|договорились|идёт|идет)/i;
 const ACTION_RE = /(иду|захожу|вхожу|прохожу|атак|бью|ударю|убиваю|руб[лию]|осм[ао]тр|подбира|зажига|достаю|бросаю|крадусь|ищу|спускаюсь)/i;
 function addressed(t){
@@ -1546,7 +1683,7 @@ ${talk}
 - Тайны раскрывай только если доверяешь (отношение 3+) или получаешь выгоду.
 - Вступаешь в отряд только если тебе это выгодно или ты доверяешь, и это прозвучало в разговоре.
 - В "action" — короткая ремарка о том, что ты делаешь (третье лицо, без кавычек), или пусто.
-- "effect" — только если это действительно произошло сейчас: ${CHAR_EFFECTS[id].join(', ')} или null.${id === 'tina' ? ' pacify_ghost — только если призрак перед тобой и ты с ним заговорила.' : ''}
+- "effect" — только если это действительно произошло сейчас: ${(CHAR_EFFECTS[id] || []).join(', ')} или null.${id === 'tina' ? ' pacify_ghost — только если призрак перед тобой и ты с ним заговорила.' : ''}
 
 Ответь ТОЛЬКО JSON: {"reply":"прямая речь","action":"","approval_delta":0,"join":null,"leave":null,"gives":null,"effect":null}
 
@@ -1560,7 +1697,7 @@ function applyTalk(id, res, text){
   if (res.join === true && !p.joined){ p.joined = true; tags.push([`${c.name} в отряде`, 'good']); }
   if (res.leave === true && p.joined){ p.joined = false; tags.push([`${c.name} уходит из отряда`]); }
   const gift = itemName(res.gives); if (gift && !S.inventory.includes(gift)){ S.inventory.push(gift); tags.push([`+ ${gift}`]); SFX.pickup(); }
-  const fx = CHAR_EFFECTS[id].includes(res.effect) ? res.effect : null;
+  const fx = (CHAR_EFFECTS[id] || []).includes(res.effect) ? res.effect : null;
   if (fx === 'heal_player' && !p.healUsed){ const h = d(8) + 2; p.healUsed = true; S.hp = Math.min(S.maxHp, S.hp + h); tags.push([`+${h} здоровья`, 'good']); addEffect('heal'); SFX.heal(); }
   if (fx === 'cure_poison' && hasCond('poisoned')){ S.conditions = S.conditions.filter(x => x.id !== 'poisoned'); tags.push(['снято: Отравлен', 'good']); }
   if (fx === 'pacify_ghost'){ const g = here().enemies.find(e => e.type === 'ghost' && !e.hidden && !['dead','fled','pacified'].includes(e.state)); if (g){ g.state = 'pacified'; S.combat = activeFoes().length > 0; S.chronicle.push('Тина узнала в призраке своего брата Ивара, и он упокоился.'); addEffect('magic'); SFX.magic(); tags.push(['Призрак упокоился', 'good']); } }
@@ -1595,6 +1732,7 @@ function cannedTalk(id, t){
     : { reply: 'Вдвоём искать брата проще. Только грибы мне не топчи.', join: true, approval_delta: 1 };
   if (id === 'tina' && /(призрак|ивар|брат)/.test(t) && S.place === 'stairs') return { reply: 'Ивар?.. Это же его плащ. Ивар, это я, Тина. Медальон — видишь? Ты можешь идти домой.', action: 'снимает с шеи медальон с пером', effect: 'pacify_ghost', approval_delta: 1 };
   if (/(хлеб|краюх|ед[ауы])/.test(t) && id === 'skrip') return { reply: 'Хлебушек! Ладно, слушай: третья плита в коридоре — дырявые стены плюются иголками.', approval_delta: 2, effect: 'reveal_trap' };
+  if (ADV_ID !== 'cave') return { reply: '…', action: 'молча смотрит на тебя: без ИИ-мастера персонажи не разговаривают', approval_delta: 0 };
   return id === 'skrip' ? { reply: 'Скрип ничего не знает. Скрип шёл мимо. Шишки собирал, вот.', action: 'прячет за спину недогрызенную репу' } : { reply: 'Не наступи на грибы. Если ищешь неприятности, они глубже.', action: 'не отрываясь срезает гриб' };
 }
 function offline(t, bag){
@@ -1786,7 +1924,7 @@ function startGame(heroId){
   const H = heroOf(), line = STATS.map(([k]) => `${k} ${S.stats[k]}`).join(', ');
   S.journal.push({ who: 'sys', text: H ? `Ты — ${H.name}, ${H.race}, ${H.title}. ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` : `Свой герой. Кости брошены (4d6, лучшие три): ${line}. Здоровье ${S.maxHp}, класс брони ${S.ac}.` });
   if (LEGACY.length) S.journal.push({ who: 'sys', text: `В этом мире уже погибали герои (${LEGACY.length}). Их кости где-то здесь.` });
-  S.journal.push({ who: 'gm', text: INTRO.replace('Ты воин:', H ? `Ты — ${H.name}:` : 'Ты воин:') + (H ? ' ' + H.intro : '') });
+  S.journal.push({ who: 'gm', text: INTRO.replace('Ты воин:', H ? `Ты — ${H.name}:` : 'Ты воин:') + (H && ADV_ID === 'cave' ? ' ' + H.intro : '') });
   save(); renderAll();
 }
 /* ---------- hero choice at the start of every game ---------- */
@@ -1794,7 +1932,17 @@ function chooseHero(done){
   if (document.querySelector('.hero-back')) return;
   const back = document.createElement('div'); back.className = 'hero-back';
   const box = document.createElement('div'); box.className = 'hero-pick'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Выбор героя');
-  const h = document.createElement('h2'); h.textContent = 'Кто идёт в пещеру?'; box.append(h);
+  // adventure first: switching it starts that adventure from scratch
+  const advRow = document.createElement('div'); advRow.className = 'adv-pick';
+  Object.entries(ADVENTURES).sort(([a], [b]) => (a === 'cave') - (b === 'cave')).forEach(([id, A]) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'adv-card' + (id === ADV_ID ? ' on' : '');
+    const t = document.createElement('b'); t.textContent = A.title + (id === 'cave' ? ' (пробная)' : ''); const d = document.createElement('span'); d.textContent = A.pitch;
+    b.append(t, d); b.setAttribute('aria-pressed', String(id === ADV_ID));
+    b.addEventListener('click', () => { if (id === ADV_ID) return; try { localStorage.setItem(ADV_KEY, id); } catch(e){} location.reload(); });
+    advRow.append(b);
+  });
+  const h0 = document.createElement('h2'); h0.textContent = 'Приключение'; box.append(h0, advRow);
+  const h = document.createElement('h2'); h.textContent = 'Герой'; box.append(h);
   const opts = [...Object.entries(HEROES), ['custom', { name: 'Свой герой', title: 'случайный воин', race: '', pitch: 'Характеристики выпадут на костях. Без прошлого: историю напишешь сам.', stats: null, skills: FIGHTER_SKILLS }]];
   opts.forEach(([id, H]) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'hero-card';
@@ -1995,6 +2143,7 @@ document.querySelectorAll('#acts [data-act]').forEach(b => b.addEventListener('c
   if (k === 'gm') ask('Мастер, ');
 }));
 
+{ const h1 = document.querySelector('h1'); if (h1){ const w = ADV.title.split(' '); h1.textContent = w.slice(0, -1).join(' ') + ' '; const sp = document.createElement('span'); sp.textContent = w.slice(-1)[0]; h1.append(sp); } document.title = ADV.title; }
 $('form').addEventListener('submit', e => { e.preventDefault(); act($('cmd').value); });
 $('restart').addEventListener('click', restart);
 $('sound').addEventListener('click', () => setSound(!AU.on));

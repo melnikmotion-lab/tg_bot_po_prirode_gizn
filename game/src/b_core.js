@@ -76,8 +76,8 @@ const CONDITIONS = {
 const condName = id => CONDITIONS[id]?.name || id;
 
 /* ---------- places, enemies, companions ---------- */
-const ORDER = ['clearing','cave','corridor','stairs','lair'];
-const PLACES = {
+const CAVE_ORDER = ['clearing','cave','corridor','stairs','lair'];
+const CAVE_PLACES = {
   clearing: { name:'Поляна у пещеры', light:'dusk', about:'закат, трава и мох, грязная лужа с червяками, куст с ягодами, сосны с шишками, камни и ветки; чёрная пасть пещеры с каменными «зубами»' },
   cave:     { name:'Сырая пещера', light:'dark', about:'низкий каменный тоннель, сталактиты, лужи, светящиеся голубые грибы, под сводом спят летучие мыши; дальше проход в рукотворный коридор' },
   corridor: { name:'Древний коридор', light:'dark', about:'кирпичный коридор древних гномов; посередине нажимная плита ловушки (дротики из стен, яд, спасбросок ЛОВ 13); гоблины-дозорные; в конце — спуск' },
@@ -91,16 +91,15 @@ const ENEMY_STATS = {
   goblin_chief: { name:'Серый Зуб',    hp:21, ac:15, atk:4, dmg:'1d6+2, две атаки' },
   orc:          { name:'Гром',         hp:15, ac:13, atk:5, dmg:'1d12+3' },
 };
-const ENEMIES = Object.keys(ENEMY_STATS);
 const newEnemy = (type, extra = {}) => ({ type, name: ENEMY_STATS[type].name, hp: ENEMY_STATS[type].hp, ac: ENEMY_STATS[type].ac, state:'idle', hidden:false, ...extra });
-const START_ENEMIES = {
+const CAVE_START = {
   clearing: [],
   cave:     [newEnemy('bat', { name:'Стая летучих мышей', hp:3 })],
   corridor: [newEnemy('goblin', { name:'Гоблин-дозорный Хряп' }), newEnemy('goblin', { name:'Гоблин-дозорный Шмыг', state:'asleep' })],
   stairs:   [newEnemy('ghost', { hidden:true })],
   lair:     [newEnemy('goblin_chief'), newEnemy('orc')],
 };
-const COMPANIONS = {
+const CAVE_COMPANIONS = {
   skrip: { name:'Скрип', place:'clearing', hp:7, ac:13, atk:4, dmg:[4, 2], weapon:'ржавый нож',
     look:'тощий гоблин лет тридцати (для гоблина — старик), бурая шапка из крысиной шкуры, на левой руке не хватает двух пальцев, глаза жёлтые и бегающие',
     bible:`Скрип — гоблин-изгой. Десять лет служил у Серого Зуба «чистильщиком блестяшек»: натирал его золото. Неделю назад попался на краже серебряной ложки; орк Гром откусил ему два пальца, и Скрипа выгнали из пещеры. Теперь он прячется в кустах у входа, грызёт сырую репу и ненавидит Грома.
@@ -125,6 +124,23 @@ const COMPANIONS = {
     firstScene:'сидит на корточках у стены пещеры, срезает ножом светящиеся грибы в корзинку и вполголоса считает их; игрока замечает не сразу' },
 };
 const FEATURES = ['rubble','web','bones','barrel','crate','door','torch','chains','puddle','crystals','roots'];
+/* ---------- adventures: each brings its places, creatures, characters and master notes; the engine is shared ---------- */
+const ADVENTURES = {
+  cave: { title:'Пещера Серого Зуба', pitch:'Пробное подземелье: гоблинский вождь, его сундук и призрак на лестнице.', start:'clearing', safe:'clearing',
+    order: CAVE_ORDER, links: null, places: CAVE_PLACES, start_enemies: CAVE_START, companions: CAVE_COMPANIONS, visible: ['tina'],
+    intro: 'Закат. Ты стоишь на поляне перед чёрной пастью пещеры, похожей на пасть с каменными зубами. Говорят, внутри, в тронном зале под старым склепом, гоблинский вождь Серый Зуб стережёт сундук с золотом. Ты воин: на тебе кольчуга, на поясе длинный меч, в сумке факел и огниво. Где-то в кустах хрустнула ветка.',
+    gm: `ПРИКЛЮЧЕНИЕ «ПЕЩЕРА СЕРОГО ЗУБА».
+- Цепочка мест: clearing «Поляна у пещеры» → cave «Сырая пещера» → corridor «Древний коридор» → stairs «Лестница в склеп» → lair «Логово Серого Зуба».
+- Победа ("game_over":"win"): игрок забирает сокровище из сундука в логове ("chest_taken": true).
+- Персонажи: Скрип (гоблин-изгой на поляне) и Тина (травница в пещере) могут вступить в отряд через разговор. Если Скрип не замечен за 2–3 хода на поляне, он сам высовывается из куста.` },
+};
+/*__ADVENTURES__*/
+const ADV_KEY = 'grey-fang-adventure';
+const ADV_ID = (() => { try { const a = localStorage.getItem(ADV_KEY); return ADVENTURES[a] ? a : 'bell'; } catch(e){ return 'bell'; } })();
+const ADV = ADVENTURES[ADV_ID];
+const ORDER = ADV.order, PLACES = ADV.places, START_ENEMIES = ADV.start_enemies, COMPANIONS = ADV.companions;
+const ENEMIES = Object.keys(ENEMY_STATS);
+const neighbours = p => ADV.links ? (ADV.links[p] || []) : [ORDER[ORDER.indexOf(p) - 1], ORDER[ORDER.indexOf(p) + 1]].filter(Boolean);
 /* ---------- state ---------- */
 function rollStats(){
   const d6 = () => 1 + Math.floor(Math.random()*6);
@@ -136,22 +152,23 @@ function rollStats(){
 function newGame(heroId){
   const H = HEROES[heroId] || null;
   const stats = H ? { ...H.stats } : rollStats(), maxHp = 10 + mod(stats['ТЕЛ']);
-  const places = {}; for (const p of ORDER) places[p] = { enemies: START_ENEMIES[p].map(e => ({ ...e })), visited: p === 'clearing' };
+  const places = {}; for (const p of ORDER) places[p] = { enemies: (START_ENEMIES[p] || []).map(e => ({ ...e })), visited: p === ADV.start };
   return {
     stats, hp: maxHp, maxHp, ac: 16, gold: 0, hitDice: 1, secondWind: true, inspiration: false,
     hero: H ? heroId : null,
     inventory: ['длинный меч','кольчуга','факел','огниво','верёвка','краюха хлеба', ...(H ? H.items : [])],
     torchLit: false, held: 'длинный меч', left: null, itemArt: {},
-    place: 'clearing', places, conditions: [], exhaustion: 0,
-    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval: (H && H.rel[id] ? H.rel[id].approval : 0), hp:c.hp, alive:true, visible: id === 'tina', healUsed:false, talk:[] }])),
+    adv: ADV_ID, night: 0, ending: null,
+    place: ADV.start, places, conditions: [], exhaustion: 0,
+    party: Object.fromEntries(Object.entries(COMPANIONS).map(([id, c]) => [id, { met:false, joined:false, approval: (H && H.rel[id] ? H.rel[id].approval : 0), hp:c.hp, alive:true, visible: ADV.visible ? ADV.visible.includes(id) : true, healUsed:false, talk:[] }])),
     zones: Object.fromEntries(ORDER.map(p => [p, { i:0, f: { cave:['crystals','roots'], corridor:['web','barrel'] }[p] || [], title:'' }])), turnsHere: 0, lastBanter: -9, combat: false,
     chronicle: [], history: [], journal: [], turn: 0, over: null, chestTaken: false, legacyFound: false,
   };
 }
-const INTRO = 'Закат. Ты стоишь на поляне перед чёрной пастью пещеры, похожей на пасть с каменными зубами. Говорят, внутри, в тронном зале под старым склепом, гоблинский вождь Серый Зуб стережёт сундук с золотом. Ты воин: на тебе кольчуга, на поясе длинный меч, в сумке факел и огниво. Где-то в кустах хрустнула ветка.';
+const INTRO = ADV.intro;
 let S;
 try { const raw = localStorage.getItem(SAVE_KEY); S = raw ? JSON.parse(raw) : null; } catch(e){ S = null; }
-const freshStart = !S || !S.places;
+const freshStart = !S || !S.places || (S.adv || 'cave') !== ADV_ID;
 if (freshStart) S = newGame('bran');
 function save(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch(e){} }
 let LEGACY = [];

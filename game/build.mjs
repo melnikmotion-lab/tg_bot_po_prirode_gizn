@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = f => fs.readFileSync(path.join(here, 'src', f), 'utf8');
 
 const page = src('a_page.html');
-const game = src('b_core.js') + src('c_render.js').replace('__HANDS__', src('hands.json').trim()).replace('__ART__', src('art.json').trim()) + src('d_audio.js') + src('e_game.js').replace('/*__UI__*/', src('f_ui.js'));
+const game = src('b_core.js').replace('/*__ADVENTURES__*/', src('adv_bell.js')) + src('c_render.js').replace('__HANDS__', src('hands.json').trim()).replace('__ART__', src('art.json').trim()) + src('d_audio.js') + src('e_game.js').replace('/*__UI__*/', src('f_ui.js'));
 const html = `<!doctype html>
 <html lang="ru">
 <head>
